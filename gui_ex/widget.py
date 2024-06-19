@@ -1,38 +1,94 @@
 from typing import Tuple, Union, List
 from enum import Enum
 
-from PySide2.QtCore import Qt
+from PySide6.QtCore import Qt
 
-from PySide2.QtWidgets import \
+from PySide6.QtWidgets import \
     QWidget, QSizePolicy, \
     QLayout, QGridLayout, QGroupBox, QFrame, QLabel, \
     QPushButton, QLineEdit, QComboBox, \
     QHeaderView, QTreeWidget, QTreeWidgetItem, \
     QTableWidget, QTableWidgetItem
 
-from PySide2.QtGui import QPalette, QColor, QPixmap, QImage
+from PySide6.QtGui import QPalette, QColor, QPixmap, QImage
 
-# from PySide2.QtWidgets import QBoxLayout, QFormLayout, QHBoxLayout, QStackedLayout, QVBoxLayout
-# from PySide2.QtWidgets import QTableWidget, QTableWidgetItem, \
+# from PySide6.QtWidgets import QBoxLayout, QFormLayout, QHBoxLayout, QStackedLayout, QVBoxLayout
+# from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, \
 #     QTreeWidget, QTreeWidgetItem, \
 #     QLabel, QTextEdit
-# from PySide2.QtGui import QImage, QPixmap, QColor, QKeySequence
-# from PySide2.QtWidgets import QHeaderView, QSizePolicy
+# from PySide6.QtGui import QImage, QPixmap, QColor, QKeySequence
+# from PySide6.QtWidgets import QHeaderView, QSizePolicy
 
-from python_ex._cv2 import file, Color_option
-from python_ex._numpy import np_base, image, ndarray
+from python_ex.system import File, 
 
 
 class Param():
-    class align(Enum):
-        CENTER = Qt.AlignCenter
-        RIGHT = Qt.AlignRight
-        LEFT = Qt.AlignLeft
+    class Align(Enum):
+        CENTER = Qt.AlignmentFlag.AlignCenter
+        RIGHT = Qt.AlignmentFlag.AlignRight
+        LEFT = Qt.AlignmentFlag.AlignLeft
 
-    class sector():
-        class direction(Enum):
-            VERTICAL = 0
-            HORIZONTAL = 1
+    class Direction(Enum):
+        VERTICAL = 0
+        HORIZONTAL = 1
+
+
+class Layer():
+    class Grid(QGridLayout):
+        def __init__(self, shape: Union[int, List[int]]) -> None:
+            super().__init__()
+            if isinstance(shape, int):
+                _height, _width = [shape, shape]
+            elif isinstance(shape, list):
+                _height, _width = shape
+
+            self.grid_map = np_base.get_array_from((_height, _width), is_shape=True)
+
+        def Set_contents(self):
+            ...
+
+        def set_contents(
+            self,
+            contents: Union[QWidget, QLayout, List[Union[QWidget, QLayout]]],
+            position: List[Union[int, List[int]]],
+            ignore_collision: bool = True
+        ):
+            """
+            Args
+                position : [h, w], [h, w, dh, dw]
+            """
+            if isinstance(contents, list):
+                [self.set_contents(_content, _position) for _content, _position in zip(contents, position)]
+
+            else:
+                if len(position) == 2:
+                    _points = position  # h, w
+                    _size = [1, 1]  # h, w
+                elif len(position) == 4:
+                    _points = position[:2]
+                    _size = [(_value if _value >= 1 else 1) for _value in position[2:]]
+
+                for _ct, [_point, _size_value, _limit] in enumerate(zip(_points, _size, self.grid_map.shape)):
+                    _points[_ct] = (_point if _point <= _limit else _limit) if _point >= 0 else _limit - _point
+                    _size[_ct] = (_limit - _points[_ct]) if _size_value > _limit - _points[_ct] else _size_value
+
+                is_collision = False
+                if not ignore_collision:
+                    is_collision = self.grid_map[_points[0]:_points[0] + _size[0], _points[1]:_points[1] + _size[1]].sum()
+
+                if is_collision:
+                    pass
+                else:
+                    if isinstance(contents, QLayout):
+                        self.addLayout(contents, _points[0], _points[1], _size[0], _size[1])
+
+                    elif isinstance(contents, QWidget):
+                        self.addWidget(contents, _points[0], _points[1], _size[0], _size[1])
+
+                    self.grid_map[_points[0]:_points[0] + _size[0], _points[1]:_points[1] + _size[1]] += 1
+
+
+
 
 
 class sector():
@@ -108,10 +164,11 @@ class sector():
             pass
 
     class line(QFrame):
-        def __init__(self, style: Param.sector.direction):
+        def __init__(self, style: Param.Sector.Direction):
             super().__init__()
-            self.setFrameShape(QFrame.HLine if style else QFrame.VLine)
-            self.setFrameShadow(QFrame.Sunken)
+            self.setFrameShape(
+                QFrame.Shape.HLine if style else QFrame.Shape.VLine)
+            # self.setFrameShadow(QFrame.Sunken)
 
     @staticmethod
     def contents_annotation(
@@ -123,7 +180,7 @@ class sector():
 
         for _contents, _position in annotation:
             _label = contents.label(_contents) if isinstance(_contents, str) else _contents
-            _label.setAlignment(Param.align.CENTER.value)
+            _label.setAlignment(Param.Align.CENTER.value)
             _layer.set_contents(_label, _position)
 
         for _contents, _position in object:

@@ -2,26 +2,25 @@ import sys
 from enum import Enum
 from typing import List
 
-from PySide2.QtWidgets import \
-    QApplication,\
+from PySide6.QtWidgets import \
+    QApplication, \
     QWidget, QDialog, QMessageBox, QFileDialog
 
-from python_ex import _base
+from python_ex.system import Path, File
 
 
 class Param():
-    class msg_box():
-        class icon(Enum):
-            NO          = QMessageBox.NoIcon
-            QUESTION    = QMessageBox.Question
-            INFO        = QMessageBox.Information
-            WARNING     = QMessageBox.Warning
-            CRITICAL    = QMessageBox.Critical
+    class Interaction_Icon(Enum):
+        NO          = QMessageBox.Icon.NoIcon
+        QUESTION    = QMessageBox.Icon.Question
+        INFO        = QMessageBox.Icon.Information
+        WARNING     = QMessageBox.Icon.Warning
+        CRITICAL    = QMessageBox.Icon.Critical
 
-        class btn(Enum):
-            OK = QMessageBox.Ok
-            NO = QMessageBox.No
-            RE = QMessageBox.Retry
+    class Interaction_Btn(Enum):
+        OK = QMessageBox.StandardButton.Ok
+        NO = QMessageBox.StandardButton.No
+        RE = QMessageBox.StandardButton.Retry
 
     class search_filter(Enum):
         ALL     = "All Files(*.*)"
@@ -30,52 +29,53 @@ class Param():
 
 
 class GUI_base():
-    class page(QWidget):
+    class Page(QWidget):
         def __init__(self, title: str):
             super().__init__()
             self.setWindowTitle(title)
             self.draw_layout()
 
         def get_layout(self):
-            GUI_base.interaction.msg_box(
+            GUI_base.Interaction.Pop_up_msg_box(
                 title="GUI ERROR",
                 message="You don't make {} GUI init. please make the init function".format(self.windowTitle()),
-                icon=Param.msg_box.icon.CRITICAL,
-                buttons=[Param.msg_box.btn.OK, ])
+                icon=Param.Interaction_Icon.CRITICAL,
+                buttons=[Param.Interaction_Btn.OK, ])
             return None
 
         def draw_layout(self):
             _layout = self.get_layout()
             self.setLayout(_layout) if _layout is not None else None
 
-    class interaction():
+    class Interaction():
         @staticmethod
-        def msg_box(title: str, message: str, icon: Param.msg_box.icon, buttons: List[Param.msg_box.btn]):
+        def Pop_up_msg_box(title: str, message: str, icon: Param.Interaction_Icon, buttons: List[Param.Interaction_Btn]):
             _msg = QMessageBox()
             _msg.setIcon(icon.value)
             _msg.setWindowTitle(title)
             _msg.setText(message)
 
-            bt_flag = 0
-            for _button in buttons:
-                bt_flag = bt_flag | _button.value
+            bt_flag = buttons[0].value
+
+            if len(buttons) > 1:
+                for _button in buttons[1:]:
+                    bt_flag = bt_flag | _button.value
 
             _msg.setStandardButtons(bt_flag)
             _msg.exec_()
 
         @staticmethod
-        def search(title: str, directory: str, search_filter: List[Param.search_filter] = None, parent: QWidget = None):
-            _dir = _base.directory._slash_check(directory)
+        def Search(title: str, dir: str, search_filter: List[Param.search_filter] | None = None, parent: QWidget | None = None):
+            _dir = Path.Seperater_check(dir)
 
             if search_filter is None:
-                _get_datas = QFileDialog.getExistingDirectory(parent=parent, caption=title, directory=_dir)
-                _get_datas = [_base.directory._slash_check(data) for data in _get_datas]
+                _get_datas = QFileDialog.getExistingDirectory(parent=parent, caption=title, dir=_dir)
             else:
                 _filter_str = ""
                 for _filter in search_filter:
                     _filter_str += f"{_filter};;"
 
-                _get_datas = QFileDialog.getOpenFileNames(parent=parent, caption=title, directory=_dir, filter=_filter_str[:-2])[0]
+                _get_datas = QFileDialog.getOpenFileNames(parent=parent, caption=title, dir=_dir, filter=_filter_str[:-2])[0]
                 _get_datas = [_base.directory._slash_check(data, is_file=True) for data in _get_datas]
 
             return _dir, _get_datas
@@ -91,11 +91,11 @@ class GUI_base():
                 self.setLayout(_layout) if _layout is not None else None
 
             def get_layout(self):
-                GUI_base.interaction.msg_box(
+                GUI_base.Interaction.Pop_up_msg_box(
                     title="GUI ERROR",
                     message="You don't make {} GUI init. please make the init function".format(self.windowTitle()),
-                    icon=Param.msg_box.icon.CRITICAL,
-                    buttons=[Param.msg_box.btn.OK, ])
+                    icon=Param.Msg_Box.Interaction_Icon.CRITICAL,
+                    buttons=[Param.Msg_Box.Btn.OK, ])
                 return None
 
             def onOKButtonClicked(self):
@@ -113,7 +113,7 @@ class Application():
         self.process = QApplication(sys.argv)
         self.position = position
 
-    def set_root_page(self, root_page: GUI_base.page):
+    def set_root_page(self, root_page: GUI_base.Page):
         self.root_page = root_page
 
     def _start(self):
@@ -122,4 +122,4 @@ class Application():
         self.root_page.setGeometry(*_position)
 
     def _end(self):
-        return self.process.exec_()
+        return self.process.exec()
