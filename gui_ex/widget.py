@@ -134,7 +134,7 @@ class Custom_Widget():
         def __init__(self, parent: QWidget | None = None) -> None:
             super().__init__(parent)
 
-    class Mulit_Head_Table_Widget(QWidget):
+    class Mulit_Head_List_Widget(QWidget):
         def __init__(self, parent: QWidget | None = None) -> None:
             super().__init__(parent)
 
