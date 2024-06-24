@@ -26,11 +26,6 @@ class Align(Enum):
     LEFT = Qt.AlignmentFlag.AlignLeft
 
 
-class Direction(Enum):
-    VERTICAL = 0
-    HORIZONTAL = 1
-
-
 class Window():
     class Main_Page(QMainWindow):
         def __init__(self, parent: QWidget | None = None) -> None:
@@ -46,7 +41,16 @@ class Custom_Widget():
     def Attach_label(
         widget: QWidget,
         text: str,
-        direction_flag: Direction,
+        is_horizental: bool,
+        is_widget_first: bool = False
+    ):
+        ...
+
+    @staticmethod
+    def Widget_grouping(
+        widget: QWidget,
+        text: str,
+        is_horizental: bool,
         is_widget_first: bool = False
     ):
         ...
