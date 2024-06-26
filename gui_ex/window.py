@@ -1,9 +1,9 @@
-import sys
 from enum import Enum
 from typing import List
 
 from PySide6.QtWidgets import (
-    QWidget, QDialog, QMessageBox, QFileDialog, QMainWindow
+    QMessageBox, QMainWindow,
+    QFileDialog,  # QDialog
 )
 
 # from python_ex.system import Path
@@ -11,11 +11,11 @@ from PySide6.QtWidgets import (
 
 class Message_Box_Flag():
     class Icon(Enum):
-        NO          = QMessageBox.Icon.NoIcon
-        QUESTION    = QMessageBox.Icon.Question
-        INFO        = QMessageBox.Icon.Information
-        WARNING     = QMessageBox.Icon.Warning
-        CRITICAL    = QMessageBox.Icon.Critical
+        NO =        QMessageBox.Icon.NoIcon
+        QUESTION =  QMessageBox.Icon.Question
+        INFO =      QMessageBox.Icon.Information
+        WARNING =   QMessageBox.Icon.Warning
+        CRITICAL =  QMessageBox.Icon.Critical
 
     class Btn(Enum):
         OK = QMessageBox.StandardButton.Ok
@@ -51,13 +51,24 @@ class Interaction_Dialog():
         ...
 
     @staticmethod
-    def Get_file_from_directory():
-        ...
+    def Get_file_from_directory(caption: str, obj_dir: str):
+        return QFileDialog.getExistingDirectory(
+            None,
+            caption,
+            obj_dir,
+            QFileDialog.Option.ShowDirsOnly
+        )
 
 
 class Default_Window():
     class Main(QMainWindow):
-        ...
+        def __init__(self, title) -> None:
+            super().__init__()
+            self.User_interface_init(title)
 
-    class Sub():
-        ...
+        def User_interface_init(self, title: str):
+            self.setWindowTitle(title)
+            raise NotImplementedError
+
+    # class Sub():
+    #     ...
