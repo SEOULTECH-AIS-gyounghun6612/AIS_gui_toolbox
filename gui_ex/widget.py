@@ -26,19 +26,21 @@ class Align(Enum):
 def Widget_grouping(
     widgets: List[QWidget],
     is_horizental: bool,
-    ailgn: Align | List[Align]
+    align: Align | List[Align] | None = None
 ) -> QLayout:
-    _is_list = isinstance(ailgn, list)
+    _is_list = isinstance(align, list)
 
-    if _is_list and len(ailgn) != len(widgets):
+    if _is_list and len(align) != len(widgets):
         raise ValueError(
             "!!! Widgets and ailgn count is mismatch. check it !!!")
 
     _layout = QHBoxLayout() if is_horizental else QVBoxLayout()
     for _ct, _widget in enumerate(widgets):
-        _layout.addWidget(
-            _widget,
-            alignment=ailgn[_ct].value if _is_list else ailgn.value)
+        if align is None:
+            _layout.addWidget(_widget)
+        else:
+            _ali = align[_ct].value if _is_list else align.value
+            _layout.addWidget(_widget, alignment=_ali)
     return _layout
 
 
@@ -46,11 +48,11 @@ def Widget_grouping_with_rate(
     widgets: List[QWidget],
     is_horizental: bool,
     rate: List[int],
-    ailgn: Align | List[Align]
+    align: Align | List[Align] | None = None
 ) -> QLayout:
-    _is_list = isinstance(ailgn, list)
+    _is_list = isinstance(align, list)
 
-    if _is_list and len(ailgn) != len(widgets):
+    if _is_list and len(align) != len(widgets):
         raise ValueError(
             "!!! Widgets and ailgn count is mismatch. check it !!!")
 
@@ -63,10 +65,11 @@ def Widget_grouping_with_rate(
 
     for _ct, (_widget, _rate) in enumerate(zip(widgets, rate)):
         _pos = [0, _st, 1, _rate] if is_horizental else [_st, 0, _rate, 1]
-        _layout.addWidget(
-            _widget,
-            *_pos,
-            alignment=ailgn[_ct].value if _is_list else ailgn.value)
+        if align is None:
+            _layout.addWidget(_widget, *_pos)
+        else:
+            _ali = align[_ct].value if _is_list else align.value
+            _layout.addWidget(_widget, *_pos, alignment=_ali)
         _st += _rate
     return _layout
 
