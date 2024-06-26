@@ -64,7 +64,7 @@ def Widget_grouping_with_rate(
     _st = 0
 
     for _ct, (_widget, _rate) in enumerate(zip(widgets, rate)):
-        _pos = [0, _st, 1, _rate] if is_horizental else [_st, 0, _rate, 1]
+        _pos = [_st, 0, _rate, 1] if is_horizental else [0, _st, 1, _rate]
         if align is None:
             _layout.addWidget(_widget, *_pos)
         else:
@@ -94,9 +94,9 @@ def Attach_label(
         _layout.addWidget(QLabel(label_text), 0, 0)
 
         if _is_widget:
-            _layout.addWidget(obj, 1, 0, rate, 1)
+            _layout.addWidget(obj, 0, 1, 1, rate)
         else:
-            _layout.addLayout(obj, 1, 0, rate, 1)
+            _layout.addLayout(obj, 0, 1, 1, rate)
 
     return _layout
 
