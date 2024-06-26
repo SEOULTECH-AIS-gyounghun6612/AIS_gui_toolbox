@@ -1,10 +1,10 @@
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 from enum import Enum
 
 from PySide6.QtCore import Qt
 
 from PySide6.QtWidgets import (
-    QGridLayout,
+    QLayout, QGridLayout, QVBoxLayout, QHBoxLayout,
     QWidget, QLabel, QListWidget,
     QListWidgetItem, QAbstractItemView,
 )
@@ -23,22 +23,79 @@ class Align(Enum):
     LEFT = Qt.AlignmentFlag.AlignLeft
 
 
-def Attach_label(
-    widget: QWidget,
-    text: str,
-    is_horizental: bool,
-    is_widget_first: bool = False
-):
-    ...
-
-
 def Widget_grouping(
-    widget: QWidget,
-    text: str,
+    widgets: List[QWidget],
     is_horizental: bool,
-    is_widget_first: bool = False
-):
-    ...
+    ailgn: Align | List[Align]
+) -> QLayout:
+    _is_list = isinstance(ailgn, list)
+
+    if _is_list and len(ailgn) != len(widgets):
+        raise ValueError(
+            "!!! Widgets and ailgn count is mismatch. check it !!!")
+
+    _layout = QHBoxLayout() if is_horizental else QVBoxLayout()
+    for _ct, _widget in enumerate(widgets):
+        _layout.addWidget(
+            _widget,
+            alignment=ailgn[_ct].value if _is_list else ailgn.value)
+    return _layout
+
+
+def Widget_grouping_with_rate(
+    widgets: List[QWidget],
+    is_horizental: bool,
+    rate: List[int],
+    ailgn: Align | List[Align]
+) -> QLayout:
+    _is_list = isinstance(ailgn, list)
+
+    if _is_list and len(ailgn) != len(widgets):
+        raise ValueError(
+            "!!! Widgets and ailgn count is mismatch. check it !!!")
+
+    if len(rate) != len(widgets):
+        raise ValueError(
+            "!!! Widgets and rate count is mismatch. check it !!!")
+
+    _layout = QGridLayout()
+    _st = 0
+
+    for _ct, (_widget, _rate) in enumerate(zip(widgets, rate)):
+        _pos = [0, _st, 1, _rate] if is_horizental else [_st, 0, _rate, 1]
+        _layout.addWidget(
+            _widget,
+            *_pos,
+            alignment=ailgn[_ct].value if _is_list else ailgn.value)
+        _st += _rate
+    return _layout
+
+
+def Attach_label(
+    obj: QWidget | QLayout,
+    label_text: str,
+    rate: int = -1
+) -> QLayout:
+    _is_widget = isinstance(obj, QWidget)
+    _is_grid = rate != -1
+
+    _layout = QHBoxLayout() if _is_grid else QGridLayout()
+
+    if _is_grid:
+        _layout = QHBoxLayout()
+        _layout.addWidget(QLabel(label_text))
+        _layout.addWidget(obj) if _is_widget else _layout.addLayout(obj)
+
+    else:
+        _layout = QGridLayout()
+        _layout.addWidget(QLabel(label_text), 0, 0)
+
+        if _is_widget:
+            _layout.addWidget(obj, 1, 0, rate, 1)
+        else:
+            _layout.addLayout(obj, 1, 0, rate, 1)
+
+    return _layout
 
 
 class Img_Dispaly_Widget(QLabel):
