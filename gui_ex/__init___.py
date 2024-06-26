@@ -9,11 +9,12 @@ if __package__ == "":
     if path.dirname(path.abspath(__file__)) not in sys.path:
         sys.path.append(path.dirname(path.abspath(__file__)))
 
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication
+from .window import Default_Window
 
 
 @staticmethod
-def Application_run(main_page: QWidget, position: List[int]):
+def Application_run(main_page: Default_Window.Main, position: List[int]):
     """ ### 어플리케이션 작동을 위한 함수
     주어진 QWidget을 시작페이지로 사용하여, 어플리케이션을 작동함.
 
