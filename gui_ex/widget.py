@@ -82,8 +82,6 @@ def Attach_label(
     _is_widget = isinstance(obj, QWidget)
     _is_grid = rate != -1
 
-    _layout = QHBoxLayout() if _is_grid else QGridLayout()
-
     if _is_grid:
         _layout = QHBoxLayout()
         _layout.addWidget(QLabel(label_text))

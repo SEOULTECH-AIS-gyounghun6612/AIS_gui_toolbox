@@ -64,8 +64,8 @@ class Interaction_Dialog():
 class Default_Window():
     class Main(QMainWindow):
         def __init__(self, title, position: List[int]) -> None:
-            super().__init__()
             self.app = QApplication(sys.argv)
+            super().__init__()
 
             self.setWindowTitle(title)
             _main_widget = self._Set_main_widget()
