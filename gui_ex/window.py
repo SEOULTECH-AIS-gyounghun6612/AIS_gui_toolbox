@@ -1,14 +1,15 @@
 from enum import Enum
 from typing import List
+import sys
 
 from PySide6.QtWidgets import (
+    QApplication, QWidget,
     QMessageBox, QMainWindow,
     QFileDialog,  # QDialog
 )
 
+
 # from python_ex.system import Path
-
-
 class Message_Box_Flag():
     class Icon(Enum):
         NO =        QMessageBox.Icon.NoIcon
@@ -62,13 +63,22 @@ class Interaction_Dialog():
 
 class Default_Window():
     class Main(QMainWindow):
-        def __init__(self, title) -> None:
+        def __init__(self, title, position: List[int]) -> None:
             super().__init__()
-            self.User_interface_init(title)
+            self.app = QApplication(sys.argv)
 
-        def User_interface_init(self, title: str):
             self.setWindowTitle(title)
+            _main_widget = self._Set_main_widget()
+            self.setCentralWidget(_main_widget)
+            self.setGeometry(*position)
+
+        def _Set_main_widget(self) -> QWidget:
             raise NotImplementedError
+
+        def Run(self):
+            self.show()
+
+            return self.app.exec_()
 
     # class Sub():
     #     ...
