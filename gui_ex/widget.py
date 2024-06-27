@@ -64,13 +64,19 @@ def Widget_grouping_with_rate(
     _st = 0
 
     for _ct, (_widget, _rate) in enumerate(zip(widgets, rate)):
-        _pos = [_st, 0, _rate, 1] if is_horizental else [0, _st, 1, _rate]
+        _pos = [0, _st, 1, _rate] if is_horizental else [_st, 0, _rate, 1]
         if align is None:
             _layout.addWidget(_widget, *_pos)
         else:
             _ali = align[_ct].value if _is_list else align.value
             _layout.addWidget(_widget, *_pos, alignment=_ali)
         _st += _rate
+
+    if is_horizental:
+        _layout.setRowStretch(_layout.rowCount(), 1)
+    else:
+        _layout.setColumnStretch(_layout.columnCount(), 1)
+
     return _layout
 
 
@@ -81,13 +87,7 @@ def Attach_label(
 ) -> QLayout:
     _is_widget = isinstance(obj, QWidget)
     _is_grid = rate != -1
-
     if _is_grid:
-        _layout = QHBoxLayout()
-        _layout.addWidget(QLabel(label_text))
-        _layout.addWidget(obj) if _is_widget else _layout.addLayout(obj)
-
-    else:
         _layout = QGridLayout()
         _layout.addWidget(QLabel(label_text), 0, 0)
 
@@ -95,6 +95,12 @@ def Attach_label(
             _layout.addWidget(obj, 0, 1, 1, rate)
         else:
             _layout.addLayout(obj, 0, 1, 1, rate)
+        _layout.setRowStretch(_layout.rowCount(), 1)
+
+    else:
+        _layout = QHBoxLayout()
+        _layout.addWidget(QLabel(label_text))
+        _layout.addWidget(obj) if _is_widget else _layout.addLayout(obj)
 
     return _layout
 
@@ -106,11 +112,10 @@ class Img_Dispaly_Widget(QLabel):
         img: np.ndarray | str | None = None
     ):
         super().__init__(parent)
-        self.img, is_img_load = self._Set_img(img, True)
-        self.is_img_load = is_img_load
+        self.img, _is_img_load = self._Set_img(img, True)
 
-        if is_img_load:
-            self.Display()
+        if _is_img_load:
+            self.setPixmap(self._Img_to_pixmap())
 
     def _Set_img(
         self,
@@ -148,28 +153,23 @@ class Img_Dispaly_Widget(QLabel):
                 _format = QImage.Format.Format_Grayscale8
             else:
                 _format = QImage.Format.Format_Grayscale16
-            _bytes_per_line = _img.shape[0]
         elif len(_img.shape) == 3:  # color
             _img = Vision_Toolbox.Format_converter(_img)
             _format = QImage.Format.Format_RGB888
-            _bytes_per_line = _img.shape[0] * _img.shape[2]
         else:  # color with a channel
             _img = Vision_Toolbox.Format_converter(
                 _img,
                 Convert_Flag.BGRA2RGBA
             )
             _format = QImage.Format.Format_RGBA8888
-            _bytes_per_line = _img.shape[0] * _img.shape[2]
 
         _h, _w = _img.shape[:2]
-        return QPixmap.fromImage(
-            QImage(_img.tobytes(), _w, _h, _bytes_per_line, _format)
-        )
+        return QPixmap(QImage(_img.data, _w, _h, _format))
 
     def Display(self, img: np.ndarray | str | None = None):
         _img, _is_img_load = self._Set_img(img, True)
 
-        if not self.is_img_load and _is_img_load:
+        if not _is_img_load:
             return False
 
         if _is_img_load:
