@@ -82,3 +82,11 @@ class Default_Window():
 
     # class Sub():
     #     ...
+
+    class Page(QWidget):
+        def __init__(self, parent: QWidget | None = None) -> None:
+            super().__init__(parent)
+            self._User_interface_init()
+
+        def _User_interface_init(self):
+            raise NotImplementedError
