@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import Any
 import sys
 
 from PySide6.QtWidgets import (
@@ -30,7 +30,7 @@ class Interaction_Dialog():
         title: str,
         message: str,
         icon: Message_Box_Flag.Icon,
-        buttons: List[Message_Box_Flag.Btn]
+        buttons: list[Message_Box_Flag.Btn]
     ):
         _msg = QMessageBox()
         _msg.setIcon(icon.value)
@@ -63,7 +63,12 @@ class Interaction_Dialog():
 
 class Default_Window():
     class Main(QMainWindow):
-        def __init__(self, title, position: List[int]) -> None:
+        def __init__(
+            self,
+            title,
+            position: list[int],
+            default_opt: dict[str, dict[str, Any]] | None = None
+        ) -> None:
             self.app = QApplication(sys.argv)
             super().__init__()
 
@@ -71,6 +76,9 @@ class Default_Window():
             _main_widget = self._Set_main_widget()
             self.setCentralWidget(_main_widget)
             self.setGeometry(*position)
+
+        def _Set_tool_bar(self, default_opt: dict):
+            raise NotImplementedError
 
         def _Set_main_widget(self) -> QWidget:
             raise NotImplementedError
