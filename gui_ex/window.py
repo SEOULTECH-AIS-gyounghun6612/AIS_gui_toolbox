@@ -3,7 +3,7 @@ from typing import Any
 import sys
 
 from PySide6.QtWidgets import (
-    QApplication, QWidget,
+    QApplication, QWidget, QToolBar,
     QMessageBox, QMainWindow,
     QFileDialog,  # QDialog
 )
@@ -75,9 +75,13 @@ class Default_Window():
             self.setWindowTitle(title)
             _main_widget = self._Set_main_widget()
             self.setCentralWidget(_main_widget)
+            _toolbar = self._Set_tool_bar(default_opt)
+            self.addToolBar(_toolbar)
             self.setGeometry(*position)
 
-        def _Set_tool_bar(self, default_opt: dict):
+        def _Set_tool_bar(
+            self, default_opt: dict[str, dict[str, Any]] | None
+        ) -> QToolBar:
             raise NotImplementedError
 
         def _Set_main_widget(self) -> QWidget:
