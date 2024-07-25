@@ -76,12 +76,13 @@ class Default_Window():
             _main_widget = self._Set_main_widget()
             self.setCentralWidget(_main_widget)
             _toolbar = self._Set_tool_bar(default_opt)
-            self.addToolBar(_toolbar)
+            if _toolbar is not None:
+                self.addToolBar(_toolbar)
             self.setGeometry(*position)
 
         def _Set_tool_bar(
             self, default_opt: dict[str, dict[str, Any]] | None
-        ) -> QToolBar:
+        ) -> QToolBar | None:
             raise NotImplementedError
 
         def _Set_main_widget(self) -> QWidget:
