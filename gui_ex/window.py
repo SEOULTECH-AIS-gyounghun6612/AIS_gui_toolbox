@@ -3,7 +3,7 @@ from typing import Any
 import sys
 
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QToolBar,
+    QApplication, QWidget, QToolBar, QLayout,
     QMessageBox, QMainWindow,
     QFileDialog,  # QDialog
 )
@@ -75,6 +75,7 @@ class Default_Window():
             self.setWindowTitle(title)
             _main_widget = self._Set_main_widget()
             self.setCentralWidget(_main_widget)
+
             _toolbar = self._Set_tool_bar(default_opt)
             if _toolbar is not None:
                 self.addToolBar(_toolbar)
@@ -97,9 +98,11 @@ class Default_Window():
     #     ...
 
     class Page(QWidget):
-        def __init__(self, parent: QWidget | None = None) -> None:
+        def __init__(self, parent: QWidget | None = None, **ui_config) -> None:
             super().__init__(parent)
-            self._User_interface_init()
+            self.setLayout(
+                self._User_interface_init(**ui_config)
+            )
 
-        def _User_interface_init(self):
+        def _User_interface_init(self, **ui_config) -> QLayout:
             raise NotImplementedError

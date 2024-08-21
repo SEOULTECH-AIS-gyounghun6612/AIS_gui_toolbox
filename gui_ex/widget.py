@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt
 
 from PySide6.QtWidgets import (
     QLayout, QGridLayout, QVBoxLayout, QHBoxLayout,
-    QWidget, QLabel, QListWidget,
+    QWidget, QLabel, QFrame, QListWidget,
     QListWidgetItem, QAbstractItemView,
 )
 
@@ -23,18 +23,32 @@ class Align(Enum):
     LEFT = Qt.AlignmentFlag.AlignLeft
 
 
-def Widget_grouping(
+class Horizontal_Line(QFrame):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFrameShape(QFrame.Shape.HLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+
+
+class Vertical_Line(QFrame):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFrameShape(QFrame.Shape.VLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+
+
+def Grouping(
     widgets: List[QWidget],
-    is_horizental: bool,
+    is_horizontal: bool,
     align: Align | List[Align] | None = None
 ) -> QLayout:
     _is_list = isinstance(align, list)
 
     if _is_list and len(align) != len(widgets):
         raise ValueError(
-            "!!! Widgets and ailgn count is mismatch. check it !!!")
+            "!!! Widgets and align count is mismatch. check it !!!")
 
-    _layout = QHBoxLayout() if is_horizental else QVBoxLayout()
+    _layout = QHBoxLayout() if is_horizontal else QVBoxLayout()
     for _ct, _widget in enumerate(widgets):
         if align is None:
             _layout.addWidget(_widget)
@@ -44,68 +58,91 @@ def Widget_grouping(
     return _layout
 
 
-def Widget_grouping_with_rate(
-    widgets: List[QWidget],
-    is_horizental: bool,
+def Grouping_with_rate(
+    object: List[QWidget | QLayout],
     rate: List[int],
+    is_horizontal: bool,
+    is_expanding: bool = True,
     align: Align | List[Align] | None = None
 ) -> QLayout:
     _is_list = isinstance(align, list)
 
-    if _is_list and len(align) != len(widgets):
+    if _is_list and len(align) != len(object):
         raise ValueError(
-            "!!! Widgets and ailgn count is mismatch. check it !!!")
+            "!!! Widgets and align count is mismatch. check it !!!")
 
-    if len(rate) != len(widgets):
+    if len(rate) != len(object):
         raise ValueError(
             "!!! Widgets and rate count is mismatch. check it !!!")
 
     _layout = QGridLayout()
     _st = 0
 
-    for _ct, (_widget, _rate) in enumerate(zip(widgets, rate)):
-        _pos = [0, _st, 1, _rate] if is_horizental else [_st, 0, _rate, 1]
-        if align is None:
-            _layout.addWidget(_widget, *_pos)
+    for _ct, (_widget, _rate) in enumerate(zip(object, rate)):
+        _arg = [0, _st, 1, _rate] if is_horizontal else [_st, 0, _rate, 1]
+
+        if align is not None:
+            _arg.append(align[_ct].value if _is_list else align.value)
+
+        if isinstance(_widget, QLayout):
+            _layout.addLayout(_widget, *_arg)
         else:
-            _ali = align[_ct].value if _is_list else align.value
-            _layout.addWidget(_widget, *_pos, alignment=_ali)
+            _layout.addWidget(_widget, *_arg)
         _st += _rate
 
-    if is_horizental:
-        _layout.setRowStretch(_layout.rowCount(), 1)
-    else:
-        _layout.setColumnStretch(_layout.columnCount(), 1)
+    if not is_expanding:
+        if is_horizontal:
+            _layout.setRowStretch(_layout.rowCount(), 1)
+        else:
+            _layout.setColumnStretch(_layout.columnCount(), 1)
 
     return _layout
 
 
-def Attach_label(
+def Labeling(
     obj: QWidget | QLayout,
     label_text: str,
-    rate: int = -1
-) -> QLayout:
-    _is_widget = isinstance(obj, QWidget)
-    _is_grid = rate != -1
-    if _is_grid:
-        _layout = QGridLayout()
-        _layout.addWidget(QLabel(label_text), 0, 0)
+    caption_align: Align = Align.LEFT,
+    is_vertical: bool = False,
+    rate: int = 10,
+):
+    _layout = QGridLayout()
+    _caption = QLabel(label_text)
+    if is_vertical:  # vertical
+        _cap_layout = QGridLayout()
 
-        if _is_widget:
-            _layout.addWidget(obj, 0, 1, 1, rate)
+        if caption_align is Align.LEFT:
+            _cap_layout.addWidget(_caption, 0, 0)
+            _cap_layout.addWidget(QLabel(), 0, 1, 1, 98)
         else:
-            _layout.addLayout(obj, 0, 1, 1, rate)
-        _layout.setRowStretch(_layout.rowCount(), 1)
+            _cap_layout.addWidget(QLabel(), 0, 0, 1, 49)
+        
+            if caption_align is Align.CENTER:
+                _cap_layout.addWidget(_caption, 0, 49, 1, 1)
+                _cap_layout.addWidget(QLabel(), 0, 50, 1, 49)
+            else:
+                _cap_layout.addWidget(QLabel(), 0, 49, 1, 49)
+                _cap_layout.addWidget(_caption, 0, 98, 1, 49)
+        
+        _layout.addLayout(_cap_layout, 0, 0)
 
-    else:
-        _layout = QHBoxLayout()
-        _layout.addWidget(QLabel(label_text))
-        _layout.addWidget(obj) if _is_widget else _layout.addLayout(obj)
+        if isinstance(obj, QWidget):
+            _layout.addWidget(obj, 1, 0, rate, 1)
+        else:
+            _layout.addLayout(obj, 1, 0, rate, 1)
+
+    else:  # horizontal
+        if caption_align is Align.LEFT:
+            _layout.addWidget(_caption, 0, 0)
+            _layout.addWidget(obj, 0, 1, 1, 98)
+        else:
+            _layout.addWidget(obj, 0, 0, 1, 98)
+            _layout.addWidget(_caption, 0, 99)
 
     return _layout
 
 
-class Img_Dispaly_Widget(QLabel):
+class Img_Display_Widget(QLabel):
     def __init__(
         self,
         parent: QWidget | None = None,
@@ -215,7 +252,7 @@ class Multi_Head_Widget(QWidget):
                 self.header[(depth, _this_order)] = (_name, _span_size)
                 _this_order = _sub_order
 
-        return _this_order  # in laset order is header row size
+        return _this_order  # in last order is header row size
 
     def User_interface_init(self, header_structure: Dict[str, int | Dict]):
         self._Get_structure_size(header_structure)
@@ -231,7 +268,7 @@ class Multi_Head_Widget(QWidget):
         self.setLayout(_this_layout)
 
 
-class Mulit_Head_List_Widget(QWidget):
+class Multi_Head_List_Widget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.header_widget = Multi_Head_Widget(self)
