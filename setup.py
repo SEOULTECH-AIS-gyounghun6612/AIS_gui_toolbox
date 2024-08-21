@@ -1,5 +1,10 @@
 from setuptools import setup, find_namespace_packages
 
+
+requirments_package = [
+    'PySide6',
+]
+
 setup(
     name="gui_ex",
     version="0.0.1",
