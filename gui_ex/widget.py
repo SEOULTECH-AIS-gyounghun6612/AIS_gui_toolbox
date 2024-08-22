@@ -260,17 +260,17 @@ class Custom_Widget():
         ):
             _labels = ["id_num"] + labels
             if isinstance(policy, list):
-                _policty = [Flag.Resize.RESIZE_TO_CONTENTS, ] + policy
+                _policy = [Flag.Resize.RESIZE_TO_CONTENTS, ] + policy
 
                 assert len(labels) == len(policy)
-                _policty = policy
+                _policy = policy
             else:
-                _policty = [policy for _ in range(len(labels))]
+                _policy = [policy for _ in range(len(labels))]
 
             self.setColumnCount(len(labels))
             self.setHorizontalHeaderLabels(labels)
 
-            for _ct, _po in enumerate(_policty):
+            for _ct, _po in enumerate(_policy):
                 self.horizontalHeader().setSectionResizeMode(_ct, _po.value)
 
             self.labels = _labels
