@@ -1,219 +1,333 @@
-from typing import Tuple, Dict, List
 from enum import Enum
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QDateTime
 
 from PySide6.QtWidgets import (
     QLayout, QGridLayout, QVBoxLayout, QHBoxLayout,
     QWidget, QLabel, QFrame, QListWidget,
+    QTableWidget, QHeaderView, QTableWidgetItem,
     QListWidgetItem, QAbstractItemView,
 )
 
 from PySide6.QtGui import QPixmap, QImage
 import numpy as np
 
+from python_ex.system import Time, datetime
 from python_ex.vision import File_IO, Vision_Toolbox, Convert_Flag
 
 from .window import Interaction_Dialog, Message_Box_Flag
 
 
-class Align(Enum):
-    CENTER = Qt.AlignmentFlag.AlignCenter
-    RIGHT = Qt.AlignmentFlag.AlignRight
-    LEFT = Qt.AlignmentFlag.AlignLeft
+class Flag():
+    class Align(Enum):
+        CENTER = Qt.AlignmentFlag.AlignCenter
+        RIGHT = Qt.AlignmentFlag.AlignRight
+        LEFT = Qt.AlignmentFlag.AlignLeft
+
+    class Resize(Enum):
+        RESIZE_TO_CONTENTS = QHeaderView.ResizeMode.ResizeToContents
+        STRETCH = QHeaderView.ResizeMode.Stretch
 
 
-class Horizontal_Line(QFrame):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFrameShape(QFrame.Shape.HLine)
-        self.setFrameShadow(QFrame.Shadow.Sunken)
+class Utils():
+    @staticmethod
+    def Make_group(
+        ui_obj: list[QWidget | QLayout],
+        is_horizontal: bool,
+        align: Flag.Align | list[Flag.Align] | None = None
+    ) -> QLayout:
+        _is_l_align = isinstance(align, list)
 
+        if _is_l_align and len(align) != len(ui_obj):
+            raise ValueError(
+                "!!! Widgets and align count is mismatch. check it !!!")
 
-class Vertical_Line(QFrame):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFrameShape(QFrame.Shape.VLine)
-        self.setFrameShadow(QFrame.Shadow.Sunken)
-
-
-def Grouping(
-    widgets: List[QWidget],
-    is_horizontal: bool,
-    align: Align | List[Align] | None = None
-) -> QLayout:
-    _is_list = isinstance(align, list)
-
-    if _is_list and len(align) != len(widgets):
-        raise ValueError(
-            "!!! Widgets and align count is mismatch. check it !!!")
-
-    _layout = QHBoxLayout() if is_horizontal else QVBoxLayout()
-    for _ct, _widget in enumerate(widgets):
-        if align is None:
-            _layout.addWidget(_widget)
-        else:
-            _ali = align[_ct].value if _is_list else align.value
-            _layout.addWidget(_widget, alignment=_ali)
-    return _layout
-
-
-def Grouping_with_rate(
-    object: List[QWidget | QLayout],
-    rate: List[int],
-    is_horizontal: bool,
-    is_expanding: bool = True,
-    align: Align | List[Align] | None = None
-) -> QLayout:
-    _is_list = isinstance(align, list)
-
-    if _is_list and len(align) != len(object):
-        raise ValueError(
-            "!!! Widgets and align count is mismatch. check it !!!")
-
-    if len(rate) != len(object):
-        raise ValueError(
-            "!!! Widgets and rate count is mismatch. check it !!!")
-
-    _layout = QGridLayout()
-    _st = 0
-
-    for _ct, (_widget, _rate) in enumerate(zip(object, rate)):
-        _arg = [0, _st, 1, _rate] if is_horizontal else [_st, 0, _rate, 1]
-
-        if align is not None:
-            _arg.append(align[_ct].value if _is_list else align.value)
-
-        if isinstance(_widget, QLayout):
-            _layout.addLayout(_widget, *_arg)
-        else:
-            _layout.addWidget(_widget, *_arg)
-        _st += _rate
-
-    if not is_expanding:
-        if is_horizontal:
-            _layout.setRowStretch(_layout.rowCount(), 1)
-        else:
-            _layout.setColumnStretch(_layout.columnCount(), 1)
-
-    return _layout
-
-
-def Labeling(
-    obj: QWidget | QLayout,
-    label_text: str,
-    caption_align: Align = Align.LEFT,
-    is_vertical: bool = False,
-    rate: int = 10,
-):
-    _layout = QGridLayout()
-    _caption = QLabel(label_text)
-    if is_vertical:  # vertical
-        _cap_layout = QGridLayout()
-
-        if caption_align is Align.LEFT:
-            _cap_layout.addWidget(_caption, 0, 0)
-            _cap_layout.addWidget(QLabel(), 0, 1, 1, 98)
-        else:
-            _cap_layout.addWidget(QLabel(), 0, 0, 1, 49)
-        
-            if caption_align is Align.CENTER:
-                _cap_layout.addWidget(_caption, 0, 49, 1, 1)
-                _cap_layout.addWidget(QLabel(), 0, 50, 1, 49)
+        _layout = QHBoxLayout() if is_horizontal else QVBoxLayout()
+        for _ct, _obj in enumerate(ui_obj):
+            if isinstance(_obj, QLayout):
+                if align:
+                    _align = align[_ct].value if _is_l_align else align.value
+                    _layout.addLayout(_obj, _align)
+                else:
+                    _layout.addLayout(_obj)
             else:
-                _cap_layout.addWidget(QLabel(), 0, 49, 1, 49)
-                _cap_layout.addWidget(_caption, 0, 98, 1, 49)
-        
-        _layout.addLayout(_cap_layout, 0, 0)
+                if align:
+                    _align = align[_ct].value if _is_l_align else align.value
+                    _layout.addWidget(_obj, _align)
+                else:
+                    _layout.addWidget(_obj)
+        return _layout
 
-        if isinstance(obj, QWidget):
-            _layout.addWidget(obj, 1, 0, rate, 1)
-        else:
-            _layout.addLayout(obj, 1, 0, rate, 1)
+    @staticmethod
+    def Make_group_with_rate(
+        ui_obj: list[QWidget | QLayout],
+        rate: list[int],
+        is_horizontal: bool,
+        align: Flag.Align | list[Flag.Align] | None = None
+    ) -> QLayout:
+        _is_l_align = isinstance(align, list)
+        if _is_l_align and len(align) != len(ui_obj):
+            raise ValueError(
+                "!!! Widgets and align count is mismatch. check it !!!")
 
-    else:  # horizontal
-        if caption_align is Align.LEFT:
-            _layout.addWidget(_caption, 0, 0)
-            _layout.addWidget(obj, 0, 1, 1, 98)
-        else:
-            _layout.addWidget(obj, 0, 0, 1, 98)
-            _layout.addWidget(_caption, 0, 99)
+        if len(rate) != len(ui_obj):
+            raise ValueError(
+                "!!! Widgets and rate count is mismatch. check it !!!")
 
-    return _layout
+        _layout = QGridLayout()
+        _st = 0
 
+        for _ct, (_obj, _rate) in enumerate(zip(ui_obj, rate)):
+            _r, _c, _rs, _sc = (
+                [0, _st, 1, _rate] if is_horizontal else [_st, 0, _rate, 1])
 
-class Img_Display_Widget(QLabel):
-    def __init__(
-        self,
-        parent: QWidget | None = None,
-        img: np.ndarray | str | None = None
+            if isinstance(_obj, QLayout):
+                if align:
+                    _align = align[_ct].value if _is_l_align else align.value
+                    _layout.addLayout(_obj, _r, _c, _rs, _sc, _align)
+                else:
+                    _layout.addLayout(_obj, _r, _c, _rs, _sc)
+
+            else:
+                if align:
+                    _align = align[_ct].value if _is_l_align else align.value
+                    _layout.addWidget(_obj, _r, _c, _rs, _sc, _align)
+                else:
+                    _layout.addWidget(_obj, _r, _c, _rs, _sc)
+
+            _st += _rate
+        return _layout
+
+    @staticmethod
+    def Labeling(
+        obj: QWidget | QLayout,
+        label_text: str,
+        caption_align: Flag.Align = Flag.Align.LEFT,
+        is_vertical: bool = False,
+        rate: int = 10,
     ):
-        super().__init__(parent)
-        self.img, _is_img_load = self._Set_img(img, True)
+        _layout = QGridLayout()
+        _caption = QLabel(label_text)
+        if is_vertical:  # vertical
+            _cap_layout = QGridLayout()
 
-        if _is_img_load:
-            self.setPixmap(self._Img_to_pixmap())
+            if caption_align is Flag.Align.LEFT:
+                _cap_layout.addWidget(_caption, 0, 0)
+                _cap_layout.addWidget(QLabel(), 0, 1, 1, 98)
+            else:
+                _cap_layout.addWidget(QLabel(), 0, 0, 1, 49)
 
-    def _Set_img(
-        self,
-        img: np.ndarray | str | None = None,
-        is_init: bool = False
-    ) -> Tuple[np.ndarray, bool]:
-        if img is None:
-            # Set empty img, when init module. Else, it is error.
-            if not is_init:
+                if caption_align is Flag.Align.CENTER:
+                    _cap_layout.addWidget(_caption, 0, 49, 1, 1)
+                    _cap_layout.addWidget(QLabel(), 0, 50, 1, 49)
+                else:
+                    _cap_layout.addWidget(QLabel(), 0, 49, 1, 49)
+                    _cap_layout.addWidget(_caption, 0, 98, 1, 49)
+
+            _layout.addLayout(_cap_layout, 0, 0)
+
+            if isinstance(obj, QWidget):
+                _layout.addWidget(obj, 1, 0, rate, 1)
+            else:
+                _layout.addLayout(obj, 1, 0, rate, 1)
+
+        else:  # horizontal
+            if caption_align is Flag.Align.LEFT:
+                _layout.addWidget(_caption, 0, 0)
+                if isinstance(obj, QWidget):
+                    _layout.addWidget(obj, 0, 1, 1, 98)
+                else:
+                    _layout.addLayout(obj, 0, 1, 1, 98)
+            else:
+                if isinstance(obj, QWidget):
+                    _layout.addWidget(obj, 0, 0, 1, 98)
+                else:
+                    _layout.addLayout(obj, 0, 0, 1, 98)
+                _layout.addWidget(_caption, 0, 99)
+
+        return _layout
+
+    @staticmethod
+    def Py_datetime_to_qdatetime(time: datetime):
+        return QDateTime.fromString(
+            Time.Make_text_from(time, "%Y-%m-%d %H:%M:%S"),
+            "yyyy-MM-dd hh:mm:ss"
+        )
+
+
+class Custom_Widget():
+    class Horizontal_Line(QFrame):
+        def __init__(self, parent: QWidget | None = None) -> None:
+            super().__init__(parent)
+            self.setFrameShape(QFrame.Shape.HLine)
+            self.setFrameShadow(QFrame.Shadow.Sunken)
+
+    class Vertical_Line(QFrame):
+        def __init__(self, parent: QWidget | None = None) -> None:
+            super().__init__(parent)
+            self.setFrameShape(QFrame.Shape.VLine)
+            self.setFrameShadow(QFrame.Shadow.Sunken)
+
+    class Iamge_Widget(QLabel):
+        def __init__(
+            self,
+            parent: QWidget | None = None,
+            img: np.ndarray | str | None = None
+        ):
+            super().__init__(parent)
+            self.img, _is_img_load = self._Set_img(img, True)
+
+            if _is_img_load:
+                self.setPixmap(self._Img_to_pixmap())
+
+        def _Set_img(
+            self,
+            img: np.ndarray | str | None = None,
+            is_init: bool = False
+        ) -> tuple[np.ndarray, bool]:
+            if img is None:
+                # Set empty img, when init module. Else, it is error.
+                if not is_init:
+                    Interaction_Dialog.Message_box_pop_up(
+                        "!!! File Load Error !!!",
+                        "이미지 데이터 또는 파일이 전달되지 않음",
+                        Message_Box_Flag.Icon.WARNING,
+                        [Message_Box_Flag.Btn.OK]
+                    )
+
+                return np.empty(0), False
+
+            _img = File_IO.File_to_img(img) if isinstance(img, str) else img
+            if not len(_img.shape):
                 Interaction_Dialog.Message_box_pop_up(
                     "!!! File Load Error !!!",
-                    "이미지 데이터 또는 파일이 전달되지 않음",
+                    "이미지 파일을 읽는 과정에서 문제 발생",
                     Message_Box_Flag.Icon.WARNING,
                     [Message_Box_Flag.Btn.OK]
                 )
-
-            return np.empty(0), False
-
-        _img = File_IO.File_to_img(img) if isinstance(img, str) else img
-        if not len(_img.shape):
-            Interaction_Dialog.Message_box_pop_up(
-                "!!! File Load Error !!!",
-                "이미지 파일을 읽는 과정에서 문제 발생",
-                Message_Box_Flag.Icon.WARNING,
-                [Message_Box_Flag.Btn.OK]
-            )
-            return _img, False
-        else:
-            return _img, True
-
-    def _Img_to_pixmap(self):
-        _img = self.img
-        if len(_img.shape) == 2:  # gray
-            if _img.dtype == np.uint8:
-                _format = QImage.Format.Format_Grayscale8
+                return _img, False
             else:
-                _format = QImage.Format.Format_Grayscale16
-        elif len(_img.shape) == 3:  # color
-            _img = Vision_Toolbox.Format_converter(_img)
-            _format = QImage.Format.Format_RGB888
-        else:  # color with a channel
-            _img = Vision_Toolbox.Format_converter(
-                _img,
-                Convert_Flag.BGRA2RGBA
-            )
-            _format = QImage.Format.Format_RGBA8888
+                return _img, True
 
-        _h, _w = _img.shape[:2]
-        return QPixmap(QImage(_img.data, _w, _h, _format))
+        def _Img_to_pixmap(self):
+            _img = self.img
+            if len(_img.shape) == 2:  # gray
+                if _img.dtype == np.uint8:
+                    _format = QImage.Format.Format_Grayscale8
+                else:
+                    _format = QImage.Format.Format_Grayscale16
+            elif len(_img.shape) == 3:  # color
+                _img = Vision_Toolbox.Format_converter(_img)
+                _format = QImage.Format.Format_RGB888
+            else:  # color with a channel
+                _img = Vision_Toolbox.Format_converter(
+                    _img,
+                    Convert_Flag.BGRA2RGBA
+                )
+                _format = QImage.Format.Format_RGBA8888
 
-    def Display(self, img: np.ndarray | str | None = None):
-        _img, _is_img_load = self._Set_img(img, True)
+            _h, _w = _img.shape[:2]
+            return QPixmap(QImage(_img.data, _w, _h, _format))
 
-        if not _is_img_load:
-            return False
+        def Display(self, img: np.ndarray | str | None = None):
+            _img, _is_img_load = self._Set_img(img, True)
 
-        if _is_img_load:
-            self.img = _img
+            if not _is_img_load:
+                return False
 
-        self.setPixmap(self._Img_to_pixmap())
-        return True
+            if _is_img_load:
+                self.img = _img
+
+            self.setPixmap(self._Img_to_pixmap())
+            return True
+
+    class Line_Display_Table(QTableWidget):
+        def __init__(
+            self,
+            labels: list[str],
+            policy_list: Flag.Resize | list[Flag.Resize] = Flag.Resize.STRETCH,
+            parent: QWidget | None = None
+        ) -> None:
+            super().__init__(parent)
+
+            self.labels: list[str] = ["id_num"]
+            self.Set_header_label(labels, policy_list)
+
+        def Set_header_label(
+            self,
+            labels: list[str],
+            policy: Flag.Resize | list[Flag.Resize] = Flag.Resize.STRETCH
+        ):
+            _labels = ["id_num"] + labels
+            if isinstance(policy, list):
+                _policty = [Flag.Resize.STRETCH, ] + policy
+
+                assert len(labels) == len(policy)
+                _policty = policy
+            else:
+                _policty = [policy for _ in range(len(labels))]
+
+            self.setColumnCount(len(labels))
+            self.setHorizontalHeaderLabels(labels)
+
+            for _po in _policty:
+                self.horizontalHeader().setSectionResizeMode(0, _po.value)
+
+            self.labels = _labels
+
+        def Add_new_line(
+            self,
+            obj_list: list[str | QWidget],
+            is_editenabled: list[bool]
+        ):
+            assert len(obj_list) == len(is_editenabled)
+
+            _block_list = zip(obj_list, is_editenabled)
+
+            _n_num = self.rowCount()
+            self.insertRow(_n_num)
+
+            # id_num
+            _item = QTableWidgetItem(f"{_n_num}")
+            _item.setFlags(_item.flags() ^ Qt.ItemFlag.ItemIsEnabled)
+            self.setItem(_n_num, 0, _item)
+
+            # else
+            for _ct, (_obj, _is_edit) in enumerate(_block_list):
+                if isinstance(_obj, str):
+                    _item = QTableWidgetItem(_obj)
+                    if not _is_edit:
+                        _item.setFlags(
+                            _item.flags() ^ Qt.ItemFlag.ItemIsEnabled)
+                    self.setItem(_n_num, _ct + 1, _item)
+                else:
+                    if not _is_edit:
+                        _obj.setEnabled(False)
+                    self.setCellWidget(_n_num, _ct + 1, _obj)
+
+        def Del_line(self):
+            _pick = self.selectedRanges()
+            _rm_list = []
+            for _range in _pick:
+                _st = _range.topRow()
+                _ed = _range.bottomRow()
+
+                if _st == _ed:
+                    _rm_list.append(_st)
+                else:
+                    _rm_list += list(range(_st, _ed + 1))
+
+            for _ct, _rm_row in enumerate(_rm_list):
+                self.removeRow(_rm_row - _ct)
+
+            _tb_ct = self.rowCount()
+            for _ct in range(_tb_ct):
+                self.takeItem(_ct, 0).setText(f"{_ct}")
+
+        def Clear_all(self):
+            _row_ct = self.rowCount()
+            for _ct, _rm_row in enumerate(range(_row_ct)):
+                self.removeRow(_rm_row - _ct)
 
 
 class Multi_Head_Widget(QWidget):
@@ -223,11 +337,11 @@ class Multi_Head_Widget(QWidget):
     ) -> None:
         super().__init__(parent)
         self.depth: int = -1
-        self.header: Dict[Tuple[int, int], Tuple[str, int]] = {}
+        self.header: dict[tuple[int, int], tuple[str, int]] = {}
 
     def _Get_structure_size(
         self,
-        header_structure: Dict[str, int | Dict[str, int | Dict]],
+        header_structure: dict[str, int | dict[str, int | dict]],
         depth: int = 0,
         order: int = 0
     ):
@@ -254,7 +368,7 @@ class Multi_Head_Widget(QWidget):
 
         return _this_order  # in last order is header row size
 
-    def User_interface_init(self, header_structure: Dict[str, int | Dict]):
+    def User_interface_init(self, header_structure: dict[str, int | dict]):
         self._Get_structure_size(header_structure)
 
         _this_layout = QGridLayout(self)
@@ -274,7 +388,7 @@ class Multi_Head_List_Widget(QWidget):
         self.header_widget = Multi_Head_Widget(self)
         self.data_list = QListWidget(self)
 
-    def User_interface_init(self, header_structure: Dict[str, int | Dict]):
+    def User_interface_init(self, header_structure: dict[str, int | dict]):
         self.header_widget.User_interface_init(header_structure)
 
         self.data_list.setVerticalScrollBarPolicy(
