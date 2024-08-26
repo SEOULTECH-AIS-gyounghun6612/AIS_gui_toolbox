@@ -156,6 +156,16 @@ class Utils():
 
 
 class Custom_Widget():
+    class Basement(QWidget):
+        def __init__(self, parent: QWidget | None = None, **ui_config) -> None:
+            super().__init__(parent)
+            self.setLayout(
+                self._User_interface_init(**ui_config)
+            )
+
+        def _User_interface_init(self, **ui_config) -> QLayout:
+            raise NotImplementedError
+
     class Horizontal_Line(QFrame):
         def __init__(self, parent: QWidget | None = None) -> None:
             super().__init__(parent)
@@ -246,64 +256,83 @@ class Custom_Widget():
             self,
             labels: list[str],
             policy_list: Flag.Resize | list[Flag.Resize] = Flag.Resize.STRETCH,
+            use_id: bool = True,
             parent: QWidget | None = None
         ) -> None:
             super().__init__(parent)
 
-            self.labels: list[str] = ["id_num"]
-            self.Set_header_label(labels, policy_list)
+            self.labels: list[str] = []
+            self.policy_list: list[Flag.Resize] = []
+            self.use_id = use_id
+            if use_id:
+                self.verticalHeader().hide()
+            self.Set_labels(labels, policy_list, use_id)
 
-        def Set_header_label(
+        def Set_labels(
             self,
             labels: list[str],
-            policy: Flag.Resize | list[Flag.Resize] = Flag.Resize.STRETCH
+            policy: Flag.Resize | list[Flag.Resize] = Flag.Resize.STRETCH,
+            use_id: bool = True
         ):
-            _labels = ["id_num"] + labels
+            _labels: list[str] = ["id_num"] + labels if use_id else labels
+            _id_po = [Flag.Resize.RESIZE_TO_CONTENTS, ]
+
             if isinstance(policy, list):
-                _policy = [Flag.Resize.RESIZE_TO_CONTENTS, ] + policy
-
-                assert len(labels) == len(policy)
-                _policy = policy
+                _policy_list = _id_po + policy if use_id else policy
             else:
-                _policy = [policy for _ in range(len(labels))]
+                _policy_list = [policy for _ in range(len(_labels))]
+                if use_id:
+                    _policy_list = _id_po + _policy_list
 
-            self.setColumnCount(len(labels))
-            self.setHorizontalHeaderLabels(labels)
+            self.labels: list[str] = _labels
+            self.policy_list = _policy_list
+
+            self.Set_header_label()
+
+        def Set_header_label(self):
+            _labels = self.labels
+            _policy = self.policy_list
+
+            self.setColumnCount(len(_labels))
+            self.setHorizontalHeaderLabels(_labels)
 
             for _ct, _po in enumerate(_policy):
                 self.horizontalHeader().setSectionResizeMode(_ct, _po.value)
 
-            self.labels = _labels
-
-        def Add_new_line(
+        def Add_empty_line(
             self,
-            obj_list: list[str | QWidget],
-            is_editenabled: list[bool]
+            obj_list: list[tuple[str | QWidget, Flag.Align, bool]],
+            id_num: int | None = None
         ):
-            assert len(obj_list) == len(is_editenabled)
-
-            _block_list = zip(obj_list, is_editenabled)
-
             _n_num = self.rowCount()
+            _st_num = 0
             self.insertRow(_n_num)
 
-            # id_num
-            _item = QTableWidgetItem(f"{_n_num}")
-            _item.setFlags(_item.flags() ^ Qt.ItemFlag.ItemIsEnabled)
-            self.setItem(_n_num, 0, _item)
+            if self.use_id:
+                # id_num
+                _item = QTableWidgetItem(f"{id_num if id_num else _n_num}")
+                _f = _item.flags() ^ Qt.ItemFlag.ItemIsEditable
+                _item.setFlags(_f)
+                _item.setTextAlignment(Flag.Align.CENTER.value)
+                self.setItem(_n_num, _st_num, _item)
+                _st_num = 1
 
             # else
-            for _ct, (_obj, _is_edit) in enumerate(_block_list):
+            for _ct, (_obj, _align, _is_edit) in enumerate(obj_list):
                 if isinstance(_obj, str):
                     _item = QTableWidgetItem(_obj)
+                    _item.setTextAlignment(_align.value)
                     if not _is_edit:
-                        _item.setFlags(
-                            _item.flags() ^ Qt.ItemFlag.ItemIsEnabled)
-                    self.setItem(_n_num, _ct + 1, _item)
+                        _f = _item.flags() ^ Qt.ItemFlag.ItemIsEditable
+                        _item.setFlags(_f)
+                    self.setItem(_n_num, _ct + _st_num, _item)
                 else:
                     if not _is_edit:
                         _obj.setEnabled(False)
-                    self.setCellWidget(_n_num, _ct + 1, _obj)
+                    self.setCellWidget(_n_num, _ct + _st_num, _obj)
+
+        def Get_line(self, row_ct: int):
+            raise NotImplementedError
 
         def Del_line(self):
             _pick = self.selectedRanges()
@@ -321,8 +350,10 @@ class Custom_Widget():
                 self.removeRow(_rm_row - _ct)
 
             _tb_ct = self.rowCount()
-            for _ct in range(_tb_ct):
-                self.takeItem(_ct, 0).setText(f"{_ct}")
+
+            if self.use_id:
+                for _ct in range(_tb_ct):
+                    self.takeItem(_ct, 0).setText(f"{_ct}")
 
         def Clear_all(self):
             _row_ct = self.rowCount()
