@@ -1,6 +1,6 @@
 from enum import Enum
 
-from PySide6.QtCore import Qt, QDateTime
+from PySide6.QtCore import Qt, QDateTime, Signal
 
 from PySide6.QtWidgets import (
     QLayout, QGridLayout, QVBoxLayout, QHBoxLayout,
@@ -14,8 +14,6 @@ import numpy as np
 
 from python_ex.system import Time, datetime
 from python_ex.vision import File_IO, Vision_Toolbox, Convert_Flag
-
-from .window import Interaction_Dialog, Message_Box_Flag
 
 
 class Flag():
@@ -148,9 +146,12 @@ class Utils():
         return _layout
 
     @staticmethod
-    def Py_datetime_to_qdatetime(time: datetime):
+    def Py_datetime_to_qdatetime(
+        time: datetime,
+        time_format: str = "%Y-%m-%d %H:%M:%S"
+    ):
         return QDateTime.fromString(
-            Time.Make_text_from(time, "%Y-%m-%d %H:%M:%S"),
+            Time.Make_text_from(time, time_format),
             "yyyy-MM-dd hh:mm:ss"
         )
 
@@ -179,45 +180,36 @@ class Custom_Widget():
             self.setFrameShadow(QFrame.Shadow.Sunken)
 
     class Iamge_Widget(QLabel):
+        # signal
+        is_init_fail: Signal = Signal(int)
+
         def __init__(
             self,
+            img: np.ndarray | str | None = None,
             parent: QWidget | None = None,
-            img: np.ndarray | str | None = None
         ):
             super().__init__(parent)
-            self.img, _is_img_load = self._Set_img(img, True)
+            self.img = np.empty(0)
+            self.Set_img(img)
 
-            if _is_img_load:
-                self.setPixmap(self._Img_to_pixmap())
-
-        def _Set_img(
+        def Set_img(
             self,
-            img: np.ndarray | str | None = None,
-            is_init: bool = False
-        ) -> tuple[np.ndarray, bool]:
-            if img is None:
-                # Set empty img, when init module. Else, it is error.
-                if not is_init:
-                    Interaction_Dialog.Message_box_pop_up(
-                        "!!! File Load Error !!!",
-                        "이미지 데이터 또는 파일이 전달되지 않음",
-                        Message_Box_Flag.Icon.WARNING,
-                        [Message_Box_Flag.Btn.OK]
-                    )
+            img: np.ndarray | str | None = None
+        ) -> bool:
+            if isinstance(img, (str, np.ndarray)):
+                _is_file = isinstance(img, str)
+                _img = File_IO.File_to_img(img) if _is_file else img
 
-                return np.empty(0), False
+                # set image
+                if len(_img.shape) in [2, 3, 4]:  # gray, color, with alpha
+                    self.img = _img
+                    self.setPixmap(self._Img_to_pixmap())
+                    return True
 
-            _img = File_IO.File_to_img(img) if isinstance(img, str) else img
-            if not len(_img.shape):
-                Interaction_Dialog.Message_box_pop_up(
-                    "!!! File Load Error !!!",
-                    "이미지 파일을 읽는 과정에서 문제 발생",
-                    Message_Box_Flag.Icon.WARNING,
-                    [Message_Box_Flag.Btn.OK]
-                )
-                return _img, False
-            else:
-                return _img, True
+                self.is_init_fail.emit(1)  # image data has problem
+            self.is_init_fail.emit(2)  # set empty init
+
+            return False
 
         def _Img_to_pixmap(self):
             _img = self.img
@@ -238,18 +230,6 @@ class Custom_Widget():
 
             _h, _w = _img.shape[:2]
             return QPixmap(QImage(_img.data, _w, _h, _format))
-
-        def Display(self, img: np.ndarray | str | None = None):
-            _img, _is_img_load = self._Set_img(img, True)
-
-            if not _is_img_load:
-                return False
-
-            if _is_img_load:
-                self.img = _img
-
-            self.setPixmap(self._Img_to_pixmap())
-            return True
 
     class Line_Display_Table(QTableWidget):
         def __init__(
