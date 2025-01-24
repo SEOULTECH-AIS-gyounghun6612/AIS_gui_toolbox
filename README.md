@@ -8,14 +8,23 @@
 
 ### project.py
 
-
 ## Install
-1. pip 사용
-   - https 버전 -> pip install git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_pyside_ex.git
 
-2. 직접 설치
-   - git clone https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_pyside_ex.git
+- pip 사용
 
-   - cd AIS_pyside_ex
+  ```bash
+  # using pip with https
+  pip install git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_pyside_ex.git
+  ```
 
-   - pip install -e .
+- 직접 설치
+
+  ```bash
+  # clone this repository
+  git clone https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_pyside_ex.git
+
+  cd AIS_python_ex
+
+  # install 
+  pip install -e .
+  ```

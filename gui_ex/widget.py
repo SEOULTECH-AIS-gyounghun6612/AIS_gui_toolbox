@@ -13,7 +13,8 @@ from PySide6.QtGui import QPixmap, QImage
 import numpy as np
 
 from python_ex.system import Time, datetime
-from python_ex.vision import File_IO, Vision_Toolbox, Convert_Flag
+from python_ex.vision import File_IO, Vision_Toolbox
+from python_ex.vision import Flag as Vision_Flag
 
 
 class Flag():
@@ -224,7 +225,7 @@ class Custom_Widget():
             else:  # color with a channel
                 _img = Vision_Toolbox.Format_converter(
                     _img,
-                    Convert_Flag.BGRA2RGBA
+                    Vision_Flag.Convert.BGRA2RGBA
                 )
                 _format = QImage.Format.Format_RGBA8888
 
@@ -423,9 +424,10 @@ class Multi_Head_List_Widget(QWidget):
         self.data_list.setItemWidget(_place_holder, widget)
 
     def _Row_num_checker(self, row: int):
+        _row_ct = len(self)
         if row >= 0:
-            return self.__len__() if row >= self.__len__() else row
-        return self.__len__() + row
+            return _row_ct if row >= _row_ct else row
+        return _row_ct + row
 
     def Insert_widget(self, row: int, widget: QWidget):
         _place_holder = QListWidgetItem()

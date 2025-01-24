@@ -106,3 +106,6 @@ class Default_Window():
 
         def _User_interface_init(self, **ui_config) -> QLayout:
             raise NotImplementedError
+
+        def Pop_up(self):
+            self.show()
