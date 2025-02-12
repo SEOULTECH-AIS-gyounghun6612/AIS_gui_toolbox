@@ -6,7 +6,7 @@ requirments_package = [
 ]
 
 setup(
-    name="gui_ex",
+    name="gui_toolbox",
     version="0.0.1",
     description="",
     url="https://github.com/SEOULTECH-AIS-gyounghun6612/pyqt5_ex_module.git",
