@@ -1,9 +1,8 @@
 from setuptools import setup, find_namespace_packages
 
 
-requirments_package = [
-    'PySide6',
-]
+requirements_package = [
+    "python_ex", 'PySide6', "PyOpenGL", "PyOpenGL_accelerate"]
 
 setup(
     name="gui_toolbox",
@@ -15,7 +14,5 @@ setup(
     packages=find_namespace_packages(),
     zip_safe=False,
     python_requires=">= 3.7.0",
-    install_requires=[
-        "python_ex",
-    ]
+    install_requires=requirements_package
 )
