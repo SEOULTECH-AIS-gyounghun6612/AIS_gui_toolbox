@@ -14,14 +14,14 @@
 
   ```bash
   # using pip with https
-  pip install git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_pyside_ex.git
+  pip install git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_gui_toolbox.git
   ```
 
 - 직접 설치
 
   ```bash
   # clone this repository
-  git clone https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_pyside_ex.git
+  git clone https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_gui_toolbox.git
 
   cd AIS_python_ex
 

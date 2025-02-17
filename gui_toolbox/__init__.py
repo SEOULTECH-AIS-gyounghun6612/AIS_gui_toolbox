@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QToolBar, QLayout, QMainWindow  # QDialog
 )
 
-# from python_ex.system import Path_utils
+from python_ex.file import Write_to
 from python_ex.project import Config
 
 
@@ -34,6 +34,7 @@ class App(QMainWindow):
         self.app = QApplication(sys.argv)
         super().__init__()
 
+        self.config_path = config_path
         if config_path.exists():
             _cfg = Config.Read_from_file(config_format, config_path)
         else:
@@ -60,5 +61,11 @@ class App(QMainWindow):
 
     def Run(self):
         self.show()
+        _status = self.app.exec_()
 
-        return sys.exit(self.app.exec_())
+        _config_path = self.config_path.parent
+        _config_path.mkdir(parents=True, exist_ok=True)
+
+        Write_to(self.config_path, self.cfg.Config_to_dict())
+
+        return sys.exit(_status)

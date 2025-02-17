@@ -2,11 +2,12 @@ from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtCore import Signal
 
 from PySide6.QtWidgets import (QFrame, QLabel, QWidget)
-from PySide6.QtOpenGLWidgets import QOpenGLWidget
-from OpenGL.GL import (
-    glClearColor, glViewport, glMatrixMode, glLoadIdentity, glDrawArrays, glOrtho,
-    glClear, glColor3f, glBegin, glVertex3f, glEnd, glFlush,
-    GL_PROJECTION, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_TRIANGLES)
+# from PySide6.QtOpenGLWidgets import QOpenGLWidget
+# from OpenGL.GL import (
+#     glClearColor, glViewport, glMatrixMode, glLoadIdentity,
+#     glDrawArrays, glOrtho,
+#     glClear, glColor3f, glBegin, glVertex3f, glEnd, glFlush,
+#     GL_PROJECTION, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_TRIANGLES)
 
 import numpy as np
 
@@ -63,28 +64,28 @@ class Image_Display_Widget(QLabel):
         return True
 
 
-class OpenGL_Widget(QOpenGLWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+# class OpenGL_Widget(QOpenGLWidget):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
 
-    def initializeGL(self):
-        """OpenGL 초기화: 배경색 설정 등"""
-        glClearColor(0.0, 0.0, 0.0, 1.0)  # 검은 배경
+#     def initializeGL(self):
+#         """OpenGL 초기화: 배경색 설정 등"""
+#         glClearColor(0.0, 0.0, 0.0, 1.0)  # 검은 배경
 
-    def resizeGL(self, w, h):
-        """윈도우 크기 조정 시 호출됨"""
-        glViewport(0, 0, w, h)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        glOrtho(-1, 1, -1, 1, -1, 1)  # 단순한 직교 투영
+#     def resizeGL(self, w, h):
+#         """윈도우 크기 조정 시 호출됨"""
+#         glViewport(0, 0, w, h)
+#         glMatrixMode(GL_PROJECTION)
+#         glLoadIdentity()
+#         glOrtho(-1, 1, -1, 1, -1, 1)  # 단순한 직교 투영
 
-    def paintGL(self):
-        """화면을 다시 그릴 때 호출됨"""
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # 화면 지우기
-        glColor3f(1.0, 0.0, 0.0)  # 빨간색 설정
-        glBegin(GL_TRIANGLES)  # 삼각형 그리기
-        glVertex3f(-0.5, -0.5, 0)
-        glVertex3f(0.5, -0.5, 0)
-        glVertex3f(0.0, 0.5, 0)
-        glEnd()
-        glFlush()
+#     def paintGL(self):
+#         """화면을 다시 그릴 때 호출됨"""
+#         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # 화면 지우기
+#         glColor3f(1.0, 0.0, 0.0)  # 빨간색 설정
+#         glBegin(GL_TRIANGLES)  # 삼각형 그리기
+#         glVertex3f(-0.5, -0.5, 0)
+#         glVertex3f(0.5, -0.5, 0)
+#         glVertex3f(0.0, 0.5, 0)
+#         glEnd()
+#         glFlush()

@@ -2,7 +2,7 @@ from setuptools import setup, find_namespace_packages
 
 
 requirements_package = [
-    "python_ex", 'PySide6', "PyOpenGL", "PyOpenGL_accelerate"]
+    "python_ex", 'PySide6', "viser"]
 
 setup(
     name="gui_toolbox",
