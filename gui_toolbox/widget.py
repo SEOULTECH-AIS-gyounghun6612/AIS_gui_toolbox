@@ -135,7 +135,7 @@ class Viser():
                 else:
                     _component = _comp_function(label=cfg.name, **cfg.contents)
 
-                element_holder[cfg.name] = _component
+                element_holder[f"{cfg.name}_{cfg.element_type}"] = _component
 
         def Set_event(self):
             raise NotImplementedError
