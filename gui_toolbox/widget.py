@@ -1,15 +1,17 @@
-from PySide6.QtGui import QPixmap, QImage
-from PySide6.QtCore import Signal
-
-from PySide6.QtWidgets import (QFrame, QLabel, QWidget)
-# from PySide6.QtOpenGLWidgets import QOpenGLWidget
-# from OpenGL.GL import (
-#     glClearColor, glViewport, glMatrixMode, glLoadIdentity,
-#     glDrawArrays, glOrtho,
-#     glClear, glColor3f, glBegin, glVertex3f, glEnd, glFlush,
-#     GL_PROJECTION, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_TRIANGLES)
+from __future__ import annotations
+from typing import Any, Literal
+from dataclasses import dataclass
 
 import numpy as np
+
+from PySide6.QtGui import QPixmap, QImage
+from PySide6.QtCore import QObject, Signal, QThread, QUrl
+
+from PySide6.QtWidgets import (QFrame, QLabel, QWidget)
+from PySide6.QtWebEngineWidgets import QWebEngineView
+
+from python_ex.project import Config
+import viser
 
 
 class Line(QFrame):
@@ -64,28 +66,90 @@ class Image_Display_Widget(QLabel):
         return True
 
 
-# class OpenGL_Widget(QOpenGLWidget):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
+class Viser():
+    @dataclass
+    class User_Interface_Config(Config.Basement):
+        name: str
+        element_type: Literal[
+            "folder",
+            "number", "text", "vector2", "vector3", "rgb",
+            "slider", "multi_slider", "progress_bar",
+            "upload_button", "button", "checkbox",
+        ] | None
+        contents: dict[str, Any] | list[Viser.User_Interface_Config]
 
-#     def initializeGL(self):
-#         """OpenGL 초기화: 배경색 설정 등"""
-#         glClearColor(0.0, 0.0, 0.0, 1.0)  # 검은 배경
+    @staticmethod
+    def Make_cfg_from_dict(
+        structure: dict[str, Any]
+    ) -> Viser.User_Interface_Config:
+        def l2t(data: list):
+            return tuple(
+                l2t(_d) if isinstance(_d, list) else _d for _d in data)
 
-#     def resizeGL(self, w, h):
-#         """윈도우 크기 조정 시 호출됨"""
-#         glViewport(0, 0, w, h)
-#         glMatrixMode(GL_PROJECTION)
-#         glLoadIdentity()
-#         glOrtho(-1, 1, -1, 1, -1, 1)  # 단순한 직교 투영
+        _con: list[dict[str, Any]] | dict[str, Any] = structure["contents"]
 
-#     def paintGL(self):
-#         """화면을 다시 그릴 때 호출됨"""
-#         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # 화면 지우기
-#         glColor3f(1.0, 0.0, 0.0)  # 빨간색 설정
-#         glBegin(GL_TRIANGLES)  # 삼각형 그리기
-#         glVertex3f(-0.5, -0.5, 0)
-#         glVertex3f(0.5, -0.5, 0)
-#         glVertex3f(0.0, 0.5, 0)
-#         glEnd()
-#         glFlush()
+        if isinstance(_con, list):
+            structure["contents"] = [
+                Viser.Make_cfg_from_dict(_data) for _data in _con]
+        else:
+            structure["contents"] = dict(
+                (
+                    _k, l2t(_v) if isinstance(_v, list) else _v
+                ) for _k, _v in _con.items()
+            )
+
+        return Viser.User_Interface_Config(**structure)
+
+    class Server(QThread):
+        def __init__(
+            self,
+            cfg: Viser.User_Interface_Config,
+            host: str = "127.0.0.1", port: int = 8080,
+            parent: QObject | None = None
+        ) -> None:
+            super().__init__(parent)
+            self.server = viser.ViserServer(host, port)
+            self.holder = {}
+
+            self._Set_ui(self.server, cfg, self.holder)
+            self.Set_event()
+
+        def _Set_ui(
+            self,
+            server: viser.ViserServer,
+            cfg: Viser.User_Interface_Config,
+            element_holder: dict[str, Any]
+        ):
+            if isinstance(cfg.contents, list):
+                for _cfg in cfg.contents:
+                    if _cfg.element_type == "folder":
+                        with server.gui.add_folder(_cfg.name):
+                            self._Set_ui(server, _cfg, element_holder)
+                    else:
+                        self._Set_ui(server, _cfg, element_holder)
+            else:
+                _comp_function = getattr(
+                    server.gui, f"add_{cfg.element_type}")
+                if cfg.name == "":
+                    _component = _comp_function(**cfg.contents)
+                else:
+                    _component = _comp_function(label=cfg.name, **cfg.contents)
+
+                element_holder[cfg.name] = _component
+
+        def Set_event(self):
+            raise NotImplementedError
+
+    class Viewer(QWebEngineView):
+        def __init__(
+            self,
+            viser_server: Viser.Server
+        ):
+            super().__init__()
+            _host = viser_server.server.get_host()
+            _port = viser_server.server.get_port()
+
+            if not viser_server.isRunning():
+                viser_server.start()
+            self.load(QUrl(f"http://{_host}:{_port}"))
+            self.viser_server = viser_server
