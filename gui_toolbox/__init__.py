@@ -134,7 +134,7 @@ class App(QMainWindow):
     ):
         for _cfg in action_cfgs:
             if isinstance(_cfg.info, str):
-                _action = QAction(_cfg.name)
+                _action = QAction(_cfg.name, self)
                 _action.triggered.connect(
                     self.__class__.__dict__[_cfg.info])
                 if _cfg.icon is not None and Path(_cfg.icon).exists():
