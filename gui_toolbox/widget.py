@@ -78,6 +78,17 @@ class Viser():
         ] | None
         contents: dict[str, Any] | list[Viser.User_Interface_Config]
 
+        def Config_to_dict(self) -> dict[str, Any]:
+            _con = self.contents
+
+            return {
+                "name": self.name,
+                "element_type": self.element_type,
+                "contents": [
+                    _i.Config_to_dict() for _i in _con
+                ] if isinstance(_con, list) else _con
+            }
+
     @staticmethod
     def Make_cfg_from_dict(
         structure: dict[str, Any]

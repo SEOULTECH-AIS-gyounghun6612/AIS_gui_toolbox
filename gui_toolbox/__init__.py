@@ -17,16 +17,16 @@ from python_ex.project import Config
 @dataclass
 class App_Config(Config.Basement):
     # interface
+    bar_structures: InitVar[dict[str, list[dict]]]
+
     title: str = "application"
     position: tuple[int, int, int, int] = field(
         default_factory=lambda: (200, 100, 300, 200))
 
-    bar_structures: InitVar[dict[str, list[dict]]] = field(
-        default_factory=dict)
     bar_configs: dict[str, list[Bar_Config]] = field(
         default_factory=dict)
 
-    main_layout: dict[str, str] = field(default_factory=dict)
+    main_layout: dict[str, Any] = field(default_factory=dict)
 
     # for sub-window
     sub_widget_cfg_file: dict[str, str] = field(default_factory=dict)
@@ -84,7 +84,10 @@ class App_Config(Config.Basement):
             "bar_structures": dict((
                 _k, [_bar_config.Config_to_dict() for _bar_config in _list]
             ) for _k, _list in self.bar_configs.items()),
-            "main_layout": self.main_layout,
+            "main_layout": dict((
+                _k,
+                _v.Config_to_dict() if isinstance(_v, Config.Basement) else _v
+            ) for _k, _v in self.main_layout.items()),
             "sub_widget_cfg_file": self.sub_widget_cfg_file,
             "sub_widget_data": self.sub_widget_data
         }
@@ -103,14 +106,14 @@ class App(QMainWindow):
         if config_path.exists():
             _cfg = Config.Read_from_file(config_format, config_path)
         else:
-            _cfg = config_format()
+            _cfg = config_format({})
 
         self.setWindowTitle(_cfg.title)
 
         if _cfg.bar_configs:
-            if "menu_bar" in _cfg.bar_configs:
+            if "menubar" in _cfg.bar_configs:
                 _menu = self.menuBar()
-                _menu_action_cfg = _cfg.bar_configs["menu_bar"]
+                _menu_action_cfg = _cfg.bar_configs["menubar"]
                 self._Set_menu_bar(_menu, _menu_action_cfg)
 
         # if _cfg.menubar_structure:
@@ -132,27 +135,23 @@ class App(QMainWindow):
         for _cfg in action_cfgs:
             if isinstance(_cfg.info, str):
                 _action = QAction(_cfg.name)
-                _action.triggered.connect(self.__dict__[_cfg.name])
+                _action.triggered.connect(
+                    self.__class__.__dict__[_cfg.info])
                 if _cfg.icon is not None and Path(_cfg.icon).exists():
                     _action.setIcon(QIcon(_cfg.icon))
 
                 if _cfg.shortcut is not None:
                     _c = _cfg.shortcut[0]
-
                     _action.setShortcut(
                         QKeySequence(
                             f"Ctrl+{f'Shift+{_c}' if _cfg.with_shift else _c}")
                     )
-
                 menu_node.addAction(_action)
-            if isinstance(_cfg.info, list):
+            elif isinstance(_cfg.info, list):
                 # add sub menu
                 self._Set_menu_bar(menu_node.addMenu(_cfg.name), _cfg.info)
-
-            if _cfg.info is None:
+            else:
                 menu_node.addSeparator()
-
-        raise NotImplementedError
 
     def _Set_main_layout(self, main_layout_cfg: dict[str, str]) -> QLayout:
         raise NotImplementedError
