@@ -1,9 +1,13 @@
+from __future__ import annotations
+
+from typing import Any
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, InitVar
 from pathlib import Path
 
+from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QToolBar, QLayout, QMainWindow  # QDialog
+    QApplication, QWidget, QMenu, QMenuBar, QLayout, QMainWindow  # QDialog
 )
 
 from python_ex.file import Write_to
@@ -16,13 +20,74 @@ class App_Config(Config.Basement):
     title: str = "application"
     position: tuple[int, int, int, int] = field(
         default_factory=lambda: (200, 100, 300, 200))
-    toolbar_structure: dict[str, str] = field(default_factory=dict)
+
+    bar_structures: InitVar[dict[str, list[dict]]] = field(
+        default_factory=dict)
+    bar_configs: dict[str, list[Bar_Config]] = field(
+        default_factory=dict)
 
     main_layout: dict[str, str] = field(default_factory=dict)
 
     # for sub-window
     sub_widget_cfg_file: dict[str, str] = field(default_factory=dict)
     sub_widget_data: dict[str, str] = field(default_factory=dict)
+
+    def __post_init__(
+        self,
+        action_structure: dict[str, list[dict]]
+    ):
+        self.bar_configs = dict((
+            _bar_type, [self.Make_bar_config(**_arg) for _arg in _args]
+        ) for _bar_type, _args in action_structure.items())
+
+    @dataclass
+    class Bar_Config():
+        name: str
+        info: str | list[App_Config.Bar_Config] | None
+
+        shortcut: str | None
+        with_shift: bool = False
+        icon: str | None = None
+
+        def Config_to_dict(self):
+            _info = self.info
+            return {
+                "name": self.name,
+                "info": [
+                    _i.Config_to_dict() for _i in _info
+                ] if isinstance(_info, list) else _info,
+                "shortcut": self.shortcut,
+                "with_shift": self.with_shift,
+                "icon": self.icon,
+            }
+
+    def Make_bar_config(
+        self,
+        name: str,
+        info: list[dict] | str,
+        shortcut: str | None,
+        with_shift: bool,
+        icon: str | None
+    ) -> Bar_Config:
+        if isinstance(info, list):
+            # make node for add to action in under
+            _info = [self.Make_bar_config(**_arg) for _arg in info]
+            return self.Bar_Config(name, _info, shortcut, with_shift, icon)
+
+        # make action node
+        return self.Bar_Config(name, info, shortcut, with_shift, icon)
+
+    def Config_to_dict(self) -> dict[str, Any]:
+        return {
+            "title": self.title,
+            "position": self.position,
+            "bar_structures": dict((
+                _k, [_bar_config.Config_to_dict() for _bar_config in _list]
+            ) for _k, _list in self.bar_configs.items()),
+            "main_layout": self.main_layout,
+            "sub_widget_cfg_file": self.sub_widget_cfg_file,
+            "sub_widget_data": self.sub_widget_data
+        }
 
 
 class App(QMainWindow):
@@ -42,8 +107,14 @@ class App(QMainWindow):
 
         self.setWindowTitle(_cfg.title)
 
-        if _cfg.toolbar_structure:
-            self.addToolBar(self._Set_tool_bar(**_cfg.toolbar_structure))
+        if _cfg.bar_configs:
+            if "menu_bar" in _cfg.bar_configs:
+                _menu = self.menuBar()
+                _menu_action_cfg = _cfg.bar_configs["menu_bar"]
+                self._Set_menu_bar(_menu, _menu_action_cfg)
+
+        # if _cfg.menubar_structure:
+        #     self.addToolBar(self._Set_menu_bar(**_cfg.menubar_structure))
 
         _main_widget = QWidget()
         _main_widget.setLayout(
@@ -53,7 +124,34 @@ class App(QMainWindow):
 
         self.cfg = _cfg
 
-    def _Set_tool_bar(self, **cfg) -> QToolBar:
+    def _Set_menu_bar(
+        self,
+        menu_node: QMenuBar | QMenu,
+        action_cfgs: list[App_Config.Bar_Config]
+    ):
+        for _cfg in action_cfgs:
+            if isinstance(_cfg.info, str):
+                _action = QAction(_cfg.name)
+                _action.triggered.connect(self.__dict__[_cfg.name])
+                if _cfg.icon is not None and Path(_cfg.icon).exists():
+                    _action.setIcon(QIcon(_cfg.icon))
+
+                if _cfg.shortcut is not None:
+                    _c = _cfg.shortcut[0]
+
+                    _action.setShortcut(
+                        QKeySequence(
+                            f"Ctrl+{f'Shift+{_c}' if _cfg.with_shift else _c}")
+                    )
+
+                menu_node.addAction(_action)
+            if isinstance(_cfg.info, list):
+                # add sub menu
+                self._Set_menu_bar(menu_node.addMenu(_cfg.name), _cfg.info)
+
+            if _cfg.info is None:
+                menu_node.addSeparator()
+
         raise NotImplementedError
 
     def _Set_main_layout(self, main_layout_cfg: dict[str, str]) -> QLayout:
