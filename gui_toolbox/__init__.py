@@ -41,7 +41,7 @@ class App_Config(Config.Basement):
         ) for _bar_type, _args in action_structure.items())
 
     @dataclass
-    class Bar_Config():
+    class Bar_Config(Config.Basement):
         name: str
         info: str | list[App_Config.Bar_Config] | None
 
@@ -136,7 +136,7 @@ class App(QMainWindow):
             if isinstance(_cfg.info, str):
                 _action = QAction(_cfg.name, self)
                 _action.triggered.connect(
-                    self.__class__.__dict__[_cfg.info])
+                    self.__class__.__dict__[_cfg.info](self))
                 if _cfg.icon is not None and Path(_cfg.icon).exists():
                     _action.setIcon(QIcon(_cfg.icon))
 
