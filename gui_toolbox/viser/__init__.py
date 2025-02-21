@@ -10,7 +10,7 @@ from gui_toolbox.widget import Interface_Config
 
 @dataclass
 class Action_Config(Interface_Config):
-    i_contents: InitVar[dict[str, Any] | list[dict[str, Any]]]
+    meta_con: InitVar[dict[str, Any] | list[dict[str, Any]]]
     element_type: Literal[
         "folder",
         "number", "text", "vector2", "vector3", "rgb",
@@ -21,19 +21,19 @@ class Action_Config(Interface_Config):
         default_factory=dict)
 
     def __post_init__(
-        self, i_contents: dict[str, Any] | list[dict[str, Any]]
+        self, meta_con: dict[str, Any] | list[dict[str, Any]]
     ):
         def l2t(data: list):
             return tuple(
                 l2t(_d) if isinstance(_d, list) else _d for _d in data)
 
         self.contents =  [
-            Action_Config(**_args) for _args in i_contents
+            Action_Config(**_args) for _args in meta_con
         ] if isinstance(
-            i_contents, list
+            meta_con, list
         ) else dict((
             _k, l2t(_v) if isinstance(_v, list) else _v
-        ) for _k, _v in i_contents.items())
+        ) for _k, _v in meta_con.items())
 
 
 class Server(QThread):

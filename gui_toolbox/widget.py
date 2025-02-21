@@ -15,7 +15,7 @@ from python_ex.project import Config
 
 @dataclass
 class Interface_Config(Config.Basement):
-    i_contents: InitVar[dict[str, Any] | list[dict[str, Any]]]
+    meta_con: InitVar[dict[str, Any] | list[dict[str, Any]]]
 
     name: str
 
@@ -25,10 +25,10 @@ class Interface_Config(Config.Basement):
     contents: dict[str, Any] | list[Interface_Config] = field(
         default_factory=dict)
 
-    def __post_init__(self, i_contents: dict[str, Any] | list[dict[str, Any]]):
+    def __post_init__(self, meta_con: dict[str, Any] | list[dict[str, Any]]):
         self.contents = [
-            Interface_Config(**_args) for _args in i_contents
-        ] if isinstance(i_contents, list) else i_contents
+            Interface_Config(**_args) for _args in meta_con
+        ] if isinstance(meta_con, list) else meta_con
 
     def Config_to_dict(self) -> dict[str, Any]:
         _con = self.contents
@@ -36,7 +36,7 @@ class Interface_Config(Config.Basement):
             "name": self.name,
             "element_type": self.element_type,
             "is_labeled": self.is_labeled,
-            "i_contents": [
+            "meta_con": [
                 _i.Config_to_dict() for _i in _con
             ] if isinstance(_con, list) else _con
         }
