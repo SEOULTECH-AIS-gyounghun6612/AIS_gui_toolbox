@@ -1,45 +1,12 @@
 from __future__ import annotations
-from typing import Any, Literal
-from dataclasses import InitVar, dataclass, field
 
 import numpy as np
 
 from PySide6.QtGui import QPixmap, QImage
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal  # , Qt
 
 from PySide6.QtWidgets import (QFrame, QLabel, QWidget)
 # from PySide6.QtWebEngineWidgets import QWebEngineView
-
-from python_ex.project import Config
-
-
-@dataclass
-class Interface_Config(Config.Basement):
-    meta_con: InitVar[dict[str, Any] | list[dict[str, Any]]]
-
-    name: str
-
-    element_type: Literal[""]
-    is_labeled: bool
-
-    contents: dict[str, Any] | list[Interface_Config] = field(
-        default_factory=dict)
-
-    def __post_init__(self, meta_con: dict[str, Any] | list[dict[str, Any]]):
-        self.contents = [
-            Interface_Config(**_args) for _args in meta_con
-        ] if isinstance(meta_con, list) else meta_con
-
-    def Config_to_dict(self) -> dict[str, Any]:
-        _con = self.contents
-        return {
-            "name": self.name,
-            "element_type": self.element_type,
-            "is_labeled": self.is_labeled,
-            "meta_con": [
-                _i.Config_to_dict() for _i in _con
-            ] if isinstance(_con, list) else _con
-        }
 
 
 class Saperate_Line(QFrame):
