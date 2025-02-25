@@ -13,147 +13,136 @@ from PySide6.QtWidgets import (
 from python_ex.file import Write_to
 from python_ex.project import Config
 
+from .window import Page_Config
+
+
+@dataclass
+class Action_Config(Config.Basement):
+    name: str
+    info: str | list[Action_Config] | None
+
+    hotkey: str | None
+    with_shift: bool = False
+    icon: str | None = None
+
+    def Config_to_dict(self):
+        _info = self.info
+        return {
+            "name": self.name,
+            "info": [
+                _i.Config_to_dict() for _i in _info
+            ] if isinstance(_info, list) else _info,
+            "hotkey": self.hotkey,
+            "with_shift": self.with_shift,
+            "icon": self.icon,
+        }
+
 
 @dataclass
 class App_Config(Config.Basement):
-    # interface
-    bar_structures: InitVar[dict[str, list[dict]]]
+    action: InitVar[dict[str, dict[str, Any]]]
+    sub_page: InitVar[dict[str, dict[str, Any]]]
 
     title: str = "application"
-    position: tuple[int, int, int, int] = field(
-        default_factory=lambda: (200, 100, 300, 200))
+    position: tuple[int, int, int, int] = (100, 100, 100, 100)
+    action_cfg: dict[str, Action_Config] = field(default_factory=dict)
 
-    bar_configs: dict[str, list[Bar_Config]] = field(
-        default_factory=dict)
-
-    main_layout: dict[str, Any] = field(default_factory=dict)
-
-    # for sub-window
-    sub_widget_cfg_file: dict[str, str] = field(default_factory=dict)
-    sub_widget_data: dict[str, str] = field(default_factory=dict)
+    data_cfg: dict[str, Any] = field(default_factory=dict)
+    sub_page_cfg: dict[str, Page_Config] = field(default_factory=dict)
 
     def __post_init__(
         self,
-        action_structure: dict[str, list[dict]]
+        action: dict[str, dict[str, Any]],
+        sub_page: dict[str, dict[str, Any]]
     ):
-        self.bar_configs = dict((
-            _bar_type, [self.Make_bar_config(**_arg) for _arg in _args]
-        ) for _bar_type, _args in action_structure.items())
-
-    @dataclass
-    class Bar_Config(Config.Basement):
-        name: str
-        info: str | list[App_Config.Bar_Config] | None
-
-        shortcut: str | None
-        with_shift: bool = False
-        icon: str | None = None
-
-        def Config_to_dict(self):
-            _info = self.info
-            return {
-                "name": self.name,
-                "info": [
-                    _i.Config_to_dict() for _i in _info
-                ] if isinstance(_info, list) else _info,
-                "shortcut": self.shortcut,
-                "with_shift": self.with_shift,
-                "icon": self.icon,
-            }
-
-    def Make_bar_config(
-        self,
-        name: str,
-        info: list[dict] | str,
-        shortcut: str | None,
-        with_shift: bool,
-        icon: str | None
-    ) -> Bar_Config:
-        if isinstance(info, list):
-            # make node for add to action in under
-            _info = [self.Make_bar_config(**_arg) for _arg in info]
-            return self.Bar_Config(name, _info, shortcut, with_shift, icon)
-
-        # make action node
-        return self.Bar_Config(name, info, shortcut, with_shift, icon)
+        self.sub_page_cfg = dict((
+            _k, Page_Config(**_v)
+        ) for _k, _v in sub_page.items())
+        self.action_cfg = dict((
+            _k, Action_Config(**_v)
+        ) for _k, _v in action.items())
 
     def Config_to_dict(self) -> dict[str, Any]:
         return {
             "title": self.title,
             "position": self.position,
-            "bar_structures": dict((
-                _k, [_bar_config.Config_to_dict() for _bar_config in _list]
-            ) for _k, _list in self.bar_configs.items()),
-            "main_layout": dict((
-                _k,
-                _v.Config_to_dict() if isinstance(_v, Config.Basement) else _v
-            ) for _k, _v in self.main_layout.items()),
-            "sub_widget_cfg_file": self.sub_widget_cfg_file,
-            "sub_widget_data": self.sub_widget_data
+            "action": dict((
+                _k, _act_cfg.Config_to_dict()
+            ) for _k, _act_cfg in self.action_cfg.items()),
+            "data_cfg": self.data_cfg,
+            "sub_page": dict((
+                _k, _sub_page_cfg.Config_to_dict()
+            ) for _k, _sub_page_cfg in self.sub_page_cfg.items())
         }
 
 
-class App(QMainWindow):
-    def __init__(
-        self,
-        config_format: type[App_Config],
-        config_path: Path
-    ) -> None:
+class Application(QMainWindow):
+    def __init__(self, cfg_format: type[App_Config], cfg_path: Path):
         self.app = QApplication(sys.argv)
         super().__init__()
 
-        self.config_path = config_path
-        if config_path.exists():
-            _cfg = Config.Read_from_file(config_format, config_path)
+        self.config_path = cfg_path
+        if cfg_path.exists():
+            _cfg = Config.Read_from_file(cfg_format, cfg_path)
         else:
-            _cfg = config_format({})
+            _cfg = cfg_format(
+                {},
+                Page_Config({}).Config_to_dict()
+            )
 
         self.setWindowTitle(_cfg.title)
 
-        if _cfg.bar_configs:
-            if "menubar" in _cfg.bar_configs:
-                _menu = self.menuBar()
-                _menu_action_cfg = _cfg.bar_configs["menubar"]
-                self._Set_menu_bar(_menu, _menu_action_cfg)
-
-        # if _cfg.menubar_structure:
-        #     self.addToolBar(self._Set_menu_bar(**_cfg.menubar_structure))
+        if "menubar" in _cfg.action_cfg:
+            _menu = self.menuBar()
+            self._Set_menubar(_menu, _cfg.action_cfg["menubar"])
 
         _main_widget = QWidget()
-        _main_widget.setLayout(
-            self._Set_main_layout(_cfg.main_layout))
+        _main_widget.setLayout(self.Get_interface())
         self.setCentralWidget(_main_widget)
-        self.setGeometry(*_cfg.position)
+        if _cfg.position is not None:
+            self.setGeometry(*_cfg.position)
+
+        self._Set_data(**_cfg.data_cfg)
+        self._Set_event()
 
         self.cfg = _cfg
 
-    def _Set_menu_bar(
-        self,
-        menu_node: QMenuBar | QMenu,
-        action_cfgs: list[App_Config.Bar_Config]
-    ):
-        for _cfg in action_cfgs:
-            if isinstance(_cfg.info, str):
-                _action = QAction(_cfg.name, self)
-                _action.triggered.connect(
-                    self.__class__.__dict__[_cfg.info](self))
-                if _cfg.icon is not None and Path(_cfg.icon).exists():
-                    _action.setIcon(QIcon(_cfg.icon))
+    def _Set_menubar(self, menu_node: QMenuBar | QMenu, cfg: Action_Config):
+        _name = cfg.name
+        _info = cfg.info
 
-                if _cfg.shortcut is not None:
-                    _c = _cfg.shortcut[0]
-                    _action.setShortcut(
-                        QKeySequence(
-                            f"Ctrl+{f'Shift+{_c}' if _cfg.with_shift else _c}")
-                    )
-                menu_node.addAction(_action)
-            elif isinstance(_cfg.info, list):
-                # add sub menu
-                self._Set_menu_bar(menu_node.addMenu(_cfg.name), _cfg.info)
-            else:
-                menu_node.addSeparator()
+        if _info is None:
+            menu_node.addSeparator()
+        elif isinstance(_info, str):
+            # make action and set in this level
+            _action = QAction(_name, self)
 
-    def _Set_main_layout(self, main_layout_cfg: dict[str, str]) -> QLayout:
+            _icon = cfg.icon
+            _action.triggered.connect(getattr(self, _info))
+            if _icon is not None and Path(_icon).exists():
+                _action.setIcon(QIcon(_icon))
+
+            _hotkey = cfg.hotkey
+            _with_sft = cfg.with_shift
+            if _hotkey is not None:
+                _c = _hotkey[0]
+                _action.setShortcut(
+                    QKeySequence(f"Ctrl+{f'Shift+{_c}' if _with_sft else _c}")
+                )
+            menu_node.addAction(_action)
+        else:
+            # in to the next level
+            _next_lvl = menu_node.addMenu(_name)
+            for _cfg in _info:
+                self._Set_menubar(_next_lvl, _cfg)
+
+    def Get_interface(self) -> QLayout:
+        raise NotImplementedError
+
+    def _Set_event(self):
+        raise NotImplementedError
+
+    def _Set_data(self, **kwarg: Any):
         raise NotImplementedError
 
     def Run(self):
