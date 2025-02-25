@@ -5,19 +5,20 @@ from dataclasses import InitVar, dataclass, field
 from PySide6.QtCore import QObject, QThread, QUrl
 
 import viser
-from gui_toolbox.widget import Interface_Config
+from python_ex.project import Config
 
 
 @dataclass
-class Action_Config(Interface_Config):
-    meta_con: InitVar[dict[str, Any] | list[dict[str, Any]]]
+class Action_Config(Config.Basement):
+    contents: InitVar[dict[str, Any] | list[dict[str, Any]]]
+    name: str
     element_type: Literal[
         "folder",
         "number", "text", "vector2", "vector3", "rgb",
         "slider", "multi_slider", "progress_bar",
         "upload_button", "button", "checkbox",
     ] | None
-    contents: dict[str, Any] | list[Action_Config] = field(
+    contents_cfg: dict[str, Any] | list[Action_Config] = field(
         default_factory=dict)
 
     def __post_init__(
@@ -27,13 +28,23 @@ class Action_Config(Interface_Config):
             return tuple(
                 l2t(_d) if isinstance(_d, list) else _d for _d in data)
 
-        self.contents =  [
+        self.contents_cfg =  [
             Action_Config(**_args) for _args in meta_con
         ] if isinstance(
             meta_con, list
         ) else dict((
             _k, l2t(_v) if isinstance(_v, list) else _v
         ) for _k, _v in meta_con.items())
+
+    def Config_to_dict(self) -> dict[str, Any]:
+        _con = self.contents_cfg
+        return {
+            "name": self.name,
+            "element_type": self.element_type,
+            "contents": [
+                _i.Config_to_dict() for _i in _con
+            ] if isinstance(_con, list) else _con
+        }
 
 
 class Server(QThread):
@@ -56,8 +67,8 @@ class Server(QThread):
         cfg: Action_Config,
         element_holder: dict[str, Any]
     ):
-        if isinstance(cfg.contents, list):
-            for _cfg in cfg.contents:
+        if isinstance(cfg.contents_cfg, list):
+            for _cfg in cfg.contents_cfg:
                 if _cfg.element_type == "folder":
                     with server.gui.add_folder(_cfg.name):
                         self._Set_ui(server, _cfg, element_holder)
@@ -67,9 +78,9 @@ class Server(QThread):
             _comp_function = getattr(
                 server.gui, f"add_{cfg.element_type}")
             if cfg.name == "":
-                _component = _comp_function(**cfg.contents)
+                _component = _comp_function(**cfg.contents_cfg)
             else:
-                _component = _comp_function(label=cfg.name, **cfg.contents)
+                _component = _comp_function(label=cfg.name, **cfg.contents_cfg)
 
             element_holder[f"{cfg.name}_{cfg.element_type}"] = _component
 
