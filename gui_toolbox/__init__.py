@@ -18,10 +18,10 @@ from .window import Page_Config
 
 @dataclass
 class Action_Config(Config.Basement):
-    name: str
-    info: str | list[Action_Config] | None
+    name: str = "action_name"
+    info: str | list[Action_Config] | None = "function_name"
 
-    hotkey: str | None
+    hotkey: str | None = None
     with_shift: bool = False
     icon: str | None = None
 
@@ -39,9 +39,9 @@ class Action_Config(Config.Basement):
 
 
 @dataclass
-class App_Config(Config.Basement):
-    action: InitVar[dict[str, dict[str, Any]]]
-    sub_page: InitVar[dict[str, dict[str, Any]]]
+class App_Config(Page_Config):
+    action: InitVar[dict[str, dict[str, Any]]] = field(
+        default_factory=lambda: Action_Config().Config_to_dict())
 
     title: str = "application"
     position: tuple[int, int, int, int] = (100, 100, 100, 100)
@@ -50,33 +50,22 @@ class App_Config(Config.Basement):
     data_cfg: dict[str, Any] = field(default_factory=dict)
     sub_page_cfg: dict[str, Page_Config] = field(default_factory=dict)
 
-    def __post_init__(
-        self,
-        action: dict[str, dict[str, Any]],
-        sub_page: dict[str, dict[str, Any]]
-    ):
-        self.sub_page_cfg = dict((
-            _k, Page_Config(**_v)
-        ) for _k, _v in sub_page.items())
+    def __post_init__(self, **meta: dict[str, Any]):
+        super().__post_init__(sub_page=meta["sub_page"])
         self.action_cfg = dict((
             _k, Action_Config(**_v)
-        ) for _k, _v in action.items())
+        ) for _k, _v in meta["action"].items())
 
     def Config_to_dict(self) -> dict[str, Any]:
         return {
-            "title": self.title,
-            "position": self.position,
-            "action": dict((
-                _k, _act_cfg.Config_to_dict()
-            ) for _k, _act_cfg in self.action_cfg.items()),
-            "data_cfg": self.data_cfg,
+            **super().Config_to_dict(),
             "sub_page": dict((
-                _k, _sub_page_cfg.Config_to_dict()
-            ) for _k, _sub_page_cfg in self.sub_page_cfg.items())
+                _k, _action_cfg.Config_to_dict()
+            ) for _k, _action_cfg in self.action_cfg.items())
         }
 
 
-class Application(QMainWindow):
+class App(QMainWindow):
     def __init__(self, cfg_format: type[App_Config], cfg_path: Path):
         self.app = QApplication(sys.argv)
         super().__init__()
@@ -85,10 +74,7 @@ class Application(QMainWindow):
         if cfg_path.exists():
             _cfg = Config.Read_from_file(cfg_format, cfg_path)
         else:
-            _cfg = cfg_format(
-                {},
-                Page_Config({}).Config_to_dict()
-            )
+            _cfg = cfg_format(Page_Config().Config_to_dict())
 
         self.setWindowTitle(_cfg.title)
 

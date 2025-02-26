@@ -9,22 +9,20 @@ from python_ex.project import Config
 
 @dataclass
 class Page_Config(Config.Basement):
-    sub_page_meta: InitVar[dict[str, dict[str, Any]]]
+    page: InitVar[dict[str, dict[str, Any]]] = field(
+        default_factory=lambda: Page_Config().Config_to_dict())
 
     title: str = "page"
     window_type: Literal["page", "popup"] = "page"
     position: tuple[int, int, int, int] | None = None
 
     data_cfg: dict[str, Any] = field(default_factory=dict)
-    sub_page: dict[str, Page_Config] = field(default_factory=dict)
+    page_cfg: dict[str, Page_Config] = field(default_factory=dict)
 
-    def __post_init__(
-        self,
-        sub_page_meta: dict[str, dict[str, Any]]
-    ):
-        self.sub_page = dict((
+    def __post_init__(self, **meta: dict[str, Any]):
+        self.page_cfg = dict((
             _k, Page_Config(**_kwarg)
-        ) for _k, _kwarg in sub_page_meta.items())
+        ) for _k, _kwarg in meta["sub_page"].items())
 
     def Config_to_dict(self) -> dict[str, Any]:
         return {
@@ -32,9 +30,9 @@ class Page_Config(Config.Basement):
             "window_type": self.window_type,
             "position": self.position,
             "data_cfg": self.data_cfg,
-            "sub_page_meta": dict((
+            "page": dict((
                 _k, _act_cfg.Config_to_dict()
-            ) for _k, _act_cfg in self.sub_page.items())
+            ) for _k, _act_cfg in self.page_cfg.items())
         }
 
 
