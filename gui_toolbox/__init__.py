@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 from python_ex.file import Write_to
 from python_ex.project import Config
 
-from .window import Page_Config
+from .window import Page_Config, Page
 
 
 @dataclass
@@ -42,30 +42,35 @@ class Action_Config(Config.Basement):
 class App_Config(Page_Config):
     action: InitVar[dict[str, dict[str, Any]]] = field(
         default_factory=lambda: Action_Config().Config_to_dict())
-
-    title: str = "application"
-    position: tuple[int, int, int, int] = (100, 100, 100, 100)
     action_cfg: dict[str, Action_Config] = field(default_factory=dict)
 
-    data_cfg: dict[str, Any] = field(default_factory=dict)
+    sub_page: InitVar[dict[str, dict[str, Any]]] = field(
+        default_factory=lambda: Page_Config().Config_to_dict())
     sub_page_cfg: dict[str, Page_Config] = field(default_factory=dict)
 
     def __post_init__(self, **meta: dict[str, Any]):
-        super().__post_init__(sub_page=meta["sub_page"])
+        super().__post_init__(interface=meta["interface"])
         self.action_cfg = dict((
             _k, Action_Config(**_v)
         ) for _k, _v in meta["action"].items())
 
+        self.sub_page_cfg = dict((
+            _k, Page_Config(**_v)
+        ) for _k, _v in meta["sub_page"].items())
+
     def Config_to_dict(self) -> dict[str, Any]:
         return {
             **super().Config_to_dict(),
-            "sub_page": dict((
+            "action": dict((
                 _k, _action_cfg.Config_to_dict()
-            ) for _k, _action_cfg in self.action_cfg.items())
+            ) for _k, _action_cfg in self.action_cfg.items()),
+            "sub_page": dict((
+                _k, _sub_page_cfg.Config_to_dict()
+            ) for _k, _sub_page_cfg in self.sub_page_cfg.items())
         }
 
 
-class App(QMainWindow):
+class App(QMainWindow, Page):
     def __init__(self, cfg_format: type[App_Config], cfg_path: Path):
         self.app = QApplication(sys.argv)
         super().__init__()
@@ -76,22 +81,12 @@ class App(QMainWindow):
         else:
             _cfg = cfg_format(Page_Config().Config_to_dict())
 
-        self.setWindowTitle(_cfg.title)
+        QMainWindow.__init__(self)
+        Page.__init__(self, _cfg, self)
 
         if "menubar" in _cfg.action_cfg:
             _menu = self.menuBar()
             self._Set_menubar(_menu, _cfg.action_cfg["menubar"])
-
-        _main_widget = QWidget()
-        _main_widget.setLayout(self.Get_interface())
-        self.setCentralWidget(_main_widget)
-        if _cfg.position is not None:
-            self.setGeometry(*_cfg.position)
-
-        self._Set_data(**_cfg.data_cfg)
-        self._Set_event()
-
-        self.cfg = _cfg
 
     def _Set_menubar(self, menu_node: QMenuBar | QMenu, cfg: Action_Config):
         _name = cfg.name
@@ -121,15 +116,6 @@ class App(QMainWindow):
             _next_lvl = menu_node.addMenu(_name)
             for _cfg in _info:
                 self._Set_menubar(_next_lvl, _cfg)
-
-    def Get_interface(self) -> QLayout:
-        raise NotImplementedError
-
-    def _Set_event(self):
-        raise NotImplementedError
-
-    def _Set_data(self, **kwarg: Any):
-        raise NotImplementedError
 
     def Run(self):
         self.show()
