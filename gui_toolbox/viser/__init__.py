@@ -2,14 +2,20 @@ from __future__ import annotations
 from typing import Any, Literal
 from dataclasses import InitVar, dataclass, field
 
+from numpy import ndarray, arctan2
+
 from PySide6.QtCore import QObject, QThread, QUrl
 
 import viser
 from python_ex.project import Config
 
 
+def l2t(data: list):
+    return tuple(l2t(_d) if isinstance(_d, list) else _d for _d in data)
+
+
 @dataclass
-class Action_Config(Config.Basement):
+class Interface_Config(Config.Basement):
     contents: InitVar[dict[str, Any] | list[dict[str, Any]]]
     name: str
     element_type: Literal[
@@ -18,18 +24,14 @@ class Action_Config(Config.Basement):
         "slider", "multi_slider", "progress_bar",
         "upload_button", "button", "checkbox",
     ] | None
-    contents_cfg: dict[str, Any] | list[Action_Config] = field(
+    contents_cfg: dict[str, Any] | list[Interface_Config] = field(
         default_factory=dict)
 
     def __post_init__(
         self, meta_con: dict[str, Any] | list[dict[str, Any]]
     ):
-        def l2t(data: list):
-            return tuple(
-                l2t(_d) if isinstance(_d, list) else _d for _d in data)
-
-        self.contents_cfg =  [
-            Action_Config(**_args) for _args in meta_con
+        self.contents_cfg = [
+            Interface_Config(**_args) for _args in meta_con
         ] if isinstance(
             meta_con, list
         ) else dict((
@@ -48,9 +50,17 @@ class Action_Config(Config.Basement):
 
 
 class Server(QThread):
+    @dataclass
+    class Scene_Data(Config.Basement):
+        name: str
+        color: tuple[int, int, int]
+        position: tuple[float, float, float] = (0, 0, 0)
+        wxyz: tuple[float, float, float, float] = (1, 0, 0, 0)
+        visible: bool = True
+
     def __init__(
         self,
-        cfg: Action_Config,
+        cfg: Interface_Config,
         host: str = "127.0.0.1", port: int = 8080,
         parent: QObject | None = None
     ) -> None:
@@ -64,7 +74,7 @@ class Server(QThread):
     def _Set_ui(
         self,
         server: viser.ViserServer,
-        cfg: Action_Config,
+        cfg: Interface_Config,
         element_holder: dict[str, Any]
     ):
         if isinstance(cfg.contents_cfg, list):
@@ -83,6 +93,80 @@ class Server(QThread):
                 _component = _comp_function(label=cfg.name, **cfg.contents_cfg)
 
             element_holder[f"{cfg.name}_{cfg.element_type}"] = _component
+
+    def Add_cam(
+        self,
+        scene_info: Scene_Data,
+        rgb_img: ndarray,
+        focal_length: float,
+        scale: float = 0.3,
+    ):
+        _h, _w = rgb_img.shape[:1]
+        _arg = scene_info.Config_to_dict()
+        _arg.update({
+            "fov": 2 * arctan2(_h / 2, focal_length),
+            "aspect": _w / _h,
+            "scale": scale,
+            "image": rgb_img
+        })
+        self.server.scene.add_camera_frustum(**_arg)
+
+    def Add_frame(
+        self,
+        scene_info: Scene_Data,
+        show_axes: bool = True,
+        axes_length: float = 0.5,
+        axes_radius: float = 0.025,
+        origin_radius: float | None = None,
+    ):
+        _arg = scene_info.Config_to_dict()
+        _arg.update({
+            "show_axes": show_axes,
+            "axes_length": axes_length,
+            "axes_radius": axes_radius,
+            "origin_radius": origin_radius
+        })
+        _arg["origin_color"] = _arg.pop("color")
+        self.server.scene.add_frame(**_arg)
+
+    def Add_line(
+        self,
+        scene_info: Scene_Data,
+        points: ndarray,
+        colors: ndarray | None = None,
+        line_width: float = 1
+    ):
+        _arg = scene_info.Config_to_dict()
+
+        _color = _arg.pop("color")
+        _arg.update({
+            "points": points,
+            "colors": colors if colors is not None else _color,
+            "line_width": line_width
+        })
+
+        self.server.scene.add_line_segments(**_arg)
+
+    def Add_point_cloud(
+        self,
+        scene_info: Scene_Data,
+        points: ndarray,
+        colors: ndarray | None = None,
+        point_size: float = 0.1,
+        point_shape: Literal[
+            'square', 'diamond', 'circle', 'rounded', 'sparkle'] = "rounded",
+    ):
+        _arg = scene_info.Config_to_dict()
+
+        _color = _arg.pop("color")
+        _arg.update({
+            "points": points,
+            "colors": colors if colors is not None else _color,
+            "point_size": point_size,
+            "point_shape": point_shape
+        })
+
+        self.server.scene.add_point_cloud(**_arg)
 
     def Set_event(self):
         raise NotImplementedError
