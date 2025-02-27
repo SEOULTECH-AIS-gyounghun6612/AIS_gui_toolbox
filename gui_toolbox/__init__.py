@@ -7,13 +7,14 @@ from pathlib import Path
 
 from PySide6.QtGui import QAction, QIcon, QKeySequence
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QMenu, QMenuBar, QLayout, QMainWindow  # QDialog
+    QApplication, QMenu, QMenuBar, QMainWindow, QWidget
 )
 
 from python_ex.file import Write_to
 from python_ex.project import Config
 
 from .window import Page_Config, Page
+from .widget import Interface_Config
 
 
 @dataclass
@@ -44,29 +45,18 @@ class App_Config(Page_Config):
         default_factory=lambda: Action_Config().Config_to_dict())
     action_cfg: dict[str, Action_Config] = field(default_factory=dict)
 
-    sub_page: InitVar[dict[str, dict[str, Any]]] = field(
-        default_factory=lambda: Page_Config().Config_to_dict())
-    sub_page_cfg: dict[str, Page_Config] = field(default_factory=dict)
-
     def __post_init__(self, **meta: dict[str, Any]):
-        super().__post_init__(interface=meta["interface"])
+        super().__post_init__(**meta)
         self.action_cfg = dict((
             _k, Action_Config(**_v)
         ) for _k, _v in meta["action"].items())
-
-        self.sub_page_cfg = dict((
-            _k, Page_Config(**_v)
-        ) for _k, _v in meta["sub_page"].items())
 
     def Config_to_dict(self) -> dict[str, Any]:
         return {
             **super().Config_to_dict(),
             "action": dict((
                 _k, _action_cfg.Config_to_dict()
-            ) for _k, _action_cfg in self.action_cfg.items()),
-            "sub_page": dict((
-                _k, _sub_page_cfg.Config_to_dict()
-            ) for _k, _sub_page_cfg in self.sub_page_cfg.items())
+            ) for _k, _action_cfg in self.action_cfg.items())
         }
 
 
@@ -79,7 +69,7 @@ class App(QMainWindow, Page):
         if cfg_path.exists():
             _cfg = Config.Read_from_file(cfg_format, cfg_path)
         else:
-            _cfg = cfg_format(Page_Config().Config_to_dict())
+            _cfg = cfg_format(**Page_Config().Config_to_dict())
 
         QMainWindow.__init__(self)
         Page.__init__(self, _cfg, self)
@@ -87,6 +77,16 @@ class App(QMainWindow, Page):
         if "menubar" in _cfg.action_cfg:
             _menu = self.menuBar()
             self._Set_menubar(_menu, _cfg.action_cfg["menubar"])
+
+    def _Set_interface(self, cfg: Interface_Config):
+        _interface, _ = self._Make_ui(cfg)
+
+        if isinstance(_interface, QWidget):
+            self.setCentralWidget(_interface)
+        else:
+            _main_widget = QWidget()
+            _main_widget.setLayout(_interface)
+            self.setCentralWidget(_main_widget)
 
     def _Set_menubar(self, menu_node: QMenuBar | QMenu, cfg: Action_Config):
         _name = cfg.name
