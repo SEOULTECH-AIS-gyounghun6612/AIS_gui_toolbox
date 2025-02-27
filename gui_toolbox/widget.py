@@ -1,14 +1,92 @@
 from __future__ import annotations
 
+from typing import Any, Literal
+from dataclasses import InitVar, dataclass, field
+
 import numpy as np
 
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtCore import Signal  # , Qt
 
 from PySide6.QtWidgets import (
-    QFrame, QLabel, QWidget, QTabBar, QTabWidget, QLineEdit
+    QWidget, QFrame, QLabel, QTabBar, QTabWidget, QLineEdit, QPushButton,
+    QLayout, QVBoxLayout, QHBoxLayout
 )
-# from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineWidgets import QWebEngineView
+
+from python_ex.project import Config
+
+
+INTERFACE = Literal[
+    "vertical", "horizontal", "label", "button", "webview"]
+
+
+@dataclass
+class Interface_Config(Config.Basement):
+    name: str = "interface"
+    element_type: INTERFACE = "label"
+
+    size: list[int] = field(default_factory=lambda: [1, 1, 1, 1])
+
+    # parameter when this interface is widget
+    arg: dict[str, Any] | None = field(default_factory=dict)
+    style: dict[str, str] = field(default_factory=dict)
+    label: str | None = None
+    caption: str | None = None
+    event: dict[str, str] = field(default_factory=dict)
+
+    # parameter when this interface is layout
+    children: InitVar[list[dict[str, Any]] | None] = field(
+        default_factory=list)
+    children_cfg: list[Interface_Config] = field(default_factory=list)
+
+    def __post_init__(self, children: list[dict[str, Any]] | None):
+        if children is not None:
+            self.children_cfg = [
+                Interface_Config(**_args) for _args in children
+            ]
+
+    def Config_to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "element_type": self.element_type,
+            "size": self.size,
+            "event": self.event,
+            "arg": self.arg,
+            "style": self.style,
+            "label": self.label,
+            "caption": self.caption,
+            "children": [_i.Config_to_dict() for _i in self.children_cfg]
+        }
+
+
+def Get_layout(
+    layer_type: INTERFACE,
+    interface: list[tuple[QLayout | QWidget, list[int]]]
+) -> QLayout:
+    if layer_type in ["vertical", "horizontal"]:
+        _layout = QVBoxLayout() if layer_type == "vertical" else QHBoxLayout()
+        for _i, _size in interface:
+            if isinstance(_i, QWidget):
+                _layout.addWidget(_i, _size[0])
+            else:
+                _layout.addLayout(_i, _size[0])
+        return _layout
+    return QVBoxLayout()
+
+
+def Get_widget(cfg: Interface_Config) -> QWidget:
+    _type = cfg.element_type
+    _arg = (cfg.arg or {})
+
+    if _type == "button":
+        _ui = QPushButton(**_arg)
+    elif _type == "webview":
+        _ui = QWebEngineView(**_arg)
+    else:
+        _ui = QWidget()
+
+    return _ui
 
 
 class Saperate_Line(QFrame):
