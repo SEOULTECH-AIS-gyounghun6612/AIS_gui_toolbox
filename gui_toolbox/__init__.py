@@ -20,19 +20,27 @@ from .widget import Interface_Config
 @dataclass
 class Action_Config(Config.Basement):
     name: str = "action_name"
-    info: str | list[Action_Config] | None = "function_name"
+    child: InitVar[list[dict[str, Any]] | str | None] = "function_name"
 
-    hotkey: str | None = None
+    hotkey: str | None = "e"
     with_shift: bool = False
     icon: str | None = None
 
+    child_cfg: list[Action_Config] | str | None = field(init=False)
+
+    def __post_init__(self, child: str | list[dict[str, Any]] | None):
+        if isinstance(child, list):
+            self.child_cfg = [Action_Config(**_cfg) for _cfg in child]
+        else:
+            self.child_cfg = child
+
     def Config_to_dict(self):
-        _info = self.info
+        _child = self.child_cfg
         return {
             "name": self.name,
-            "info": [
-                _i.Config_to_dict() for _i in _info
-            ] if isinstance(_info, list) else _info,
+            "child": [
+                _i.Config_to_dict() for _i in _child
+            ] if isinstance(_child, list) else _child,
             "hotkey": self.hotkey,
             "with_shift": self.with_shift,
             "icon": self.icon,
@@ -41,15 +49,19 @@ class Action_Config(Config.Basement):
 
 @dataclass
 class App_Config(Page_Config):
-    action: InitVar[dict[str, dict[str, Any]]] = field(
-        default_factory=lambda: Action_Config().Config_to_dict())
-    action_cfg: dict[str, Action_Config] = field(default_factory=dict)
+    action: InitVar[dict[str, dict[str, Any]]]
+    action_cfg: dict[str, Action_Config] = field(init=False)
 
-    def __post_init__(self, **meta: dict[str, Any]):
-        super().__post_init__(**meta)
+    def __post_init__(
+        self,
+        interface: dict[str, Any],
+        sub_page: dict[str, dict[str, Any]],
+        action: dict[str, dict[str, Any]]
+    ):
+        super().__post_init__(interface, sub_page)
         self.action_cfg = dict((
             _k, Action_Config(**_v)
-        ) for _k, _v in meta["action"].items())
+        ) for _k, _v in action.items())
 
     def Config_to_dict(self) -> dict[str, Any]:
         return {
@@ -63,20 +75,37 @@ class App_Config(Page_Config):
 class App(QMainWindow, Page):
     def __init__(self, cfg_format: type[App_Config], cfg_path: Path):
         self.app = QApplication(sys.argv)
-        super().__init__()
-
         self.config_path = cfg_path
         if cfg_path.exists():
             _cfg = Config.Read_from_file(cfg_format, cfg_path)
         else:
-            _cfg = cfg_format(**Page_Config().Config_to_dict())
+            _cfg = cfg_format(
+                **App_Config(
+                    interface=Interface_Config([]).Config_to_dict(),
+                    sub_page={},
+                    action={"ex": Action_Config().Config_to_dict()},
+                    title="application",
+                    window_type="page",
+                    position=[100, 100, 300, 500],
+                    data_cfg={},
+                ).Config_to_dict())
 
-        QMainWindow.__init__(self)
-        Page.__init__(self, _cfg, self)
+        super().__init__(None)
+
+        self.setWindowTitle(_cfg.title)
+        if _cfg.position is not None:
+            self.setGeometry(*_cfg.position)
+
+        self._Set_interface(_cfg.interface_cfg)
+        self._Set_data(**_cfg.data_cfg)
 
         if "menubar" in _cfg.action_cfg:
             _menu = self.menuBar()
             self._Set_menubar(_menu, _cfg.action_cfg["menubar"])
+
+        self.cfg = _cfg
+
+        self._Run()
 
     def _Set_interface(self, cfg: Interface_Config):
         _interface, _ = self._Make_ui(cfg)
@@ -90,7 +119,7 @@ class App(QMainWindow, Page):
 
     def _Set_menubar(self, menu_node: QMenuBar | QMenu, cfg: Action_Config):
         _name = cfg.name
-        _info = cfg.info
+        _info = cfg.child_cfg
 
         if _info is None:
             menu_node.addSeparator()
@@ -117,8 +146,10 @@ class App(QMainWindow, Page):
             for _cfg in _info:
                 self._Set_menubar(_next_lvl, _cfg)
 
-    def Run(self):
-        self.show()
+    def _Run(self):
+        raise NotImplementedError
+
+    def Watcher(self):
         _status = self.app.exec_()
 
         _config_path = self.config_path.parent

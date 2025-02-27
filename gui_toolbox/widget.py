@@ -18,33 +18,35 @@ from python_ex.project import Config
 
 
 INTERFACE = Literal[
-    "vertical", "horizontal", "label", "button", "webview"]
+    "vertical", "horizontal", "label", "button", "webview", "line_edit",
+    "editable_tab"]
 
 
 @dataclass
 class Interface_Config(Config.Basement):
+    children: InitVar[list[dict[str, Any]]]
+
     name: str = "interface"
     element_type: INTERFACE = "label"
 
     size: list[int] = field(default_factory=lambda: [1, 1, 1, 1])
 
     # parameter when this interface is widget
-    arg: dict[str, Any] | None = field(default_factory=dict)
+    arg: dict[str, Any] | None = field(
+        default_factory=lambda: {"text": "test"})
     style: dict[str, str] = field(default_factory=dict)
     label: str | None = None
     caption: str | None = None
     event: dict[str, str] = field(default_factory=dict)
+    is_attribute: bool = False
 
     # parameter when this interface is layout
-    children: InitVar[list[dict[str, Any]] | None] = field(
-        default_factory=list)
-    children_cfg: list[Interface_Config] = field(default_factory=list)
+    children_cfg: list[Interface_Config] = field(init=False)
 
-    def __post_init__(self, children: list[dict[str, Any]] | None):
-        if children is not None:
-            self.children_cfg = [
-                Interface_Config(**_args) for _args in children
-            ]
+    def __post_init__(self, children: list[dict[str, Any]]):
+        self.children_cfg = [
+            Interface_Config(**_args) for _args in children
+        ]
 
     def Config_to_dict(self) -> dict[str, Any]:
         return {
@@ -52,12 +54,16 @@ class Interface_Config(Config.Basement):
             "element_type": self.element_type,
             "size": self.size,
             "event": self.event,
+            "is_attribute": self.is_attribute,
             "arg": self.arg,
             "style": self.style,
             "label": self.label,
             "caption": self.caption,
             "children": [_i.Config_to_dict() for _i in self.children_cfg]
         }
+
+    def Make_attribute_name(self):
+        return f"{self.name}_{self.element_type}"
 
 
 def Get_layout(
@@ -79,12 +85,19 @@ def Get_widget(cfg: Interface_Config) -> QWidget:
     _type = cfg.element_type
     _arg = (cfg.arg or {})
 
-    if _type == "button":
-        _ui = QPushButton(**_arg)
-    elif _type == "webview":
-        _ui = QWebEngineView(**_arg)
-    else:
-        _ui = QWidget()
+    match _type:
+        case "label":
+            _ui = QLabel(**_arg)
+        case "button":
+            _ui = QPushButton(**_arg)
+        case "webview":
+            _ui = QWebEngineView(**_arg)
+        case "line_edit":
+            _ui = QLineEdit(**_arg)
+        case "editable_tab":
+            _ui = Editable_Tab(**_arg)
+        case _:
+            _ui = QWidget()
 
     return _ui
 
@@ -174,7 +187,7 @@ class Editable_TabBar(QTabBar):
 class Editable_Tab(QTabWidget):
     def __init__(
         self,
-        tab_prefix: str,
+        tab_prefix: str = "",
         parent: QWidget | None = None
     ) -> None:
         super().__init__(parent)
