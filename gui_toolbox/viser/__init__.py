@@ -24,8 +24,7 @@ class Interface_Config(Config.Basement):
         "slider", "multi_slider", "progress_bar",
         "upload_button", "button", "checkbox",
     ] | None
-    contents_cfg: dict[str, Any] | list[Interface_Config] = field(
-        default_factory=dict)
+    contents_cfg: dict[str, Any] | list[Interface_Config] = field(init=False)
 
     def __post_init__(
         self, meta_con: dict[str, Any] | list[dict[str, Any]]
@@ -60,7 +59,7 @@ class Server(QThread):
 
     def __init__(
         self,
-        cfg: Interface_Config,
+        interface_cfg: Interface_Config,
         host: str = "127.0.0.1", port: int = 8080,
         parent: QObject | None = None
     ) -> None:
@@ -68,7 +67,7 @@ class Server(QThread):
         self.server = viser.ViserServer(host, port)
         self.holder = {}
 
-        self._Set_ui(self.server, cfg, self.holder)
+        self._Set_ui(self.server, interface_cfg, self.holder)
         self.Set_event()
 
     def _Set_ui(
@@ -77,22 +76,26 @@ class Server(QThread):
         cfg: Interface_Config,
         element_holder: dict[str, Any]
     ):
+        _name = cfg.name
+
         if isinstance(cfg.contents_cfg, list):
             for _cfg in cfg.contents_cfg:
                 if _cfg.element_type == "folder":
-                    with server.gui.add_folder(_cfg.name):
+                    with server.gui.add_folder(_name):
                         self._Set_ui(server, _cfg, element_holder)
                 else:
                     self._Set_ui(server, _cfg, element_holder)
         else:
-            _comp_function = getattr(
-                server.gui, f"add_{cfg.element_type}")
-            if cfg.name == "":
-                _component = _comp_function(**cfg.contents_cfg)
-            else:
-                _component = _comp_function(label=cfg.name, **cfg.contents_cfg)
+            # viser에서 gui를 추가 하는 함수 -> add_{type}으로 구현됨
+            _cmp = getattr(server.gui, f"add_{cfg.element_type}")(
+                **cfg.contents_cfg,
+                **({} if _name == "" else {"label": _name})
+            )
 
-            element_holder[f"{cfg.name}_{cfg.element_type}"] = _component
+            element_holder[f"{_name}_{cfg.element_type}"] = _cmp
+
+    def Set_event(self):
+        raise NotImplementedError
 
     def Add_cam(
         self,
@@ -168,15 +171,6 @@ class Server(QThread):
 
         self.server.scene.add_point_cloud(**_arg)
 
-    def Set_event(self):
-        raise NotImplementedError
-
     def Get_http_address(self):
         _server = self.server
-
-        if self.isRunning():
-            return (
-                True,
-                QUrl(f"http://{_server.get_host()}:{_server.get_port()}")
-            )
-        return False, QUrl()
+        return QUrl(f"http://{_server.get_host()}:{_server.get_port()}")
