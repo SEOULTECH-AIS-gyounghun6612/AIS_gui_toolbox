@@ -49,26 +49,27 @@ class Action_Config(Config.Basement):
 
 @dataclass
 class App_Config(Page_Config):
-    action: InitVar[dict[str, dict[str, Any]]]
-    action_cfg: dict[str, Action_Config] = field(init=False)
+    action: InitVar[list[dict[str, Any]]]
+    action_cfg: list[Action_Config] = field(init=False)
 
     def __post_init__(
         self,
         interface: dict[str, Any],
-        sub_page: dict[str, dict[str, Any]],
-        action: dict[str, dict[str, Any]]
+        sub_page: dict[str, str | None],
+        action: list[dict[str, Any]]
     ):
         super().__post_init__(interface, sub_page)
-        self.action_cfg = dict((
-            _k, Action_Config(**_v)
-        ) for _k, _v in action.items())
+
+        self.action_cfg = [
+            Action_Config(**_v) for _v in action
+        ] if action else [Action_Config("menu_01", [], None)]
 
     def Config_to_dict(self) -> dict[str, Any]:
         return {
             **super().Config_to_dict(),
-            "action": dict((
-                _k, _action_cfg.Config_to_dict()
-            ) for _k, _action_cfg in self.action_cfg.items())
+            "action": [
+                _cfg.Config_to_dict() for _cfg in self.action_cfg
+            ]
         }
 
 
@@ -83,7 +84,7 @@ class App(QMainWindow, Page):
                 **App_Config(
                     interface=Interface_Config([]).Config_to_dict(),
                     sub_page={},
-                    action={"ex": Action_Config().Config_to_dict()},
+                    action=[],
                     title="application",
                     window_type="page",
                     position=[100, 100, 300, 500],
@@ -99,9 +100,10 @@ class App(QMainWindow, Page):
         self._Set_interface(_cfg.interface_cfg)
         self._Set_data(**_cfg.data_cfg)
 
-        if "menubar" in _cfg.action_cfg:
+        if _cfg.action_cfg:
             _menu = self.menuBar()
-            self._Set_menubar(_menu, _cfg.action_cfg["menubar"])
+            for _action_cfg in _cfg.action_cfg:
+                self._Set_menubar(_menu, _action_cfg)
 
         self.cfg = _cfg
 
@@ -149,8 +151,13 @@ class App(QMainWindow, Page):
     def _Run(self):
         raise NotImplementedError
 
+    def _Stop(self):
+        raise NotImplementedError
+
     def Watcher(self):
         _status = self.app.exec_()
+
+        self._Stop()
 
         _config_path = self.config_path.parent
         _config_path.mkdir(parents=True, exist_ok=True)
