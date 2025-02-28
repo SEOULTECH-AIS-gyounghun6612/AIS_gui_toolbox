@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Any
 from dataclasses import dataclass, field, InitVar
+from pathlib import Path
 
 from PySide6.QtWidgets import (QWidget, QDialog, QLayout)
 from python_ex.project import Config
@@ -12,27 +13,26 @@ from .widget import Interface_Config, Get_layout, Get_widget
 @dataclass
 class Page_Config(Config.Basement):
     interface: InitVar[dict[str, Any]]
-    sub_page: InitVar[dict[str, dict[str, Any]]]
-
+    sub_page: InitVar[dict[str, str | None]]
     title: str
     window_type: Literal["page", "popup"]
     position: list[int] | None
 
-    interface_cfg: Interface_Config = field(init=False)
-
     data_cfg: dict[str, Any]
 
-    sub_page_cfg: dict[str, Page_Config] = field(init=False)
+    interface_cfg: Interface_Config = field(init=False)
+    sub_page_cfg: dict[str, tuple[str, Page_Config]] = field(init=False)
 
     def __post_init__(
         self,
         interface: dict[str, Any],
-        sub_page: dict[str, dict[str, Any]]
+        sub_page: dict[str, str | None]
     ):
         self.interface_cfg = Interface_Config(**interface)
+
         self.sub_page_cfg = dict((
-            _k, Page_Config(**_v)
-        ) for _k, _v in sub_page.items())
+            _k, (_v, Config.Read_from_file(Page_Config, Path(_v)))
+        ) for _k, _v in sub_page.items() if _v and Path(_v).exists())
 
     def Config_to_dict(self) -> dict[str, Any]:
         return {
@@ -42,8 +42,8 @@ class Page_Config(Config.Basement):
             "data_cfg": self.data_cfg,
             "interface": self.interface_cfg.Config_to_dict(),
             "sub_page": dict((
-                _k, _sub_page_cfg.Config_to_dict()
-            ) for _k, _sub_page_cfg in self.sub_page_cfg.items())
+                _k, _file_name
+            ) for _k, (_file_name, _) in self.sub_page_cfg.items())
         }
 
 
