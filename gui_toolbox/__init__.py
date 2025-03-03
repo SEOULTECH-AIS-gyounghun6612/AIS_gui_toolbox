@@ -107,8 +107,6 @@ class App(QMainWindow, Page):
 
         self.cfg = _cfg
 
-        self._Run()
-
     def _Set_interface(self, cfg: Interface_Config):
         _interface, _ = self._Make_ui(cfg)
 
@@ -148,20 +146,23 @@ class App(QMainWindow, Page):
             for _cfg in _info:
                 self._Set_menubar(_next_lvl, _cfg)
 
-    def _Run(self):
+    def _Start(self):
         raise NotImplementedError
 
     def _Stop(self):
         raise NotImplementedError
 
-    def Watcher(self):
-        _status = self.app.exec_()
+    def Watcher(self, save_config: bool = False):
+        self.show()
+        self._Start()
 
+        _status = self.app.exec_()
         self._Stop()
 
-        _config_path = self.config_path.parent
-        _config_path.mkdir(parents=True, exist_ok=True)
+        if save_config:
+            _config_path = self.config_path.parent
+            _config_path.mkdir(parents=True, exist_ok=True)
 
-        Write_to(self.config_path, self.cfg.Config_to_dict())
+            Write_to(self.config_path, self.cfg.Config_to_dict())
 
         return sys.exit(_status)
