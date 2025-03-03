@@ -65,9 +65,10 @@ class Server(QThread):
     ) -> None:
         super().__init__(parent)
         self.server = viser.ViserServer(host, port)
-        self.holder = {}
+        self.ui_holder = {}
+        self.play = True
 
-        self._Set_ui(self.server, interface_cfg, self.holder)
+        self._Set_ui(self.server, interface_cfg, self.ui_holder)
         self.Set_event()
 
     def _Set_ui(
