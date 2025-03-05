@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Literal
 from dataclasses import InitVar, dataclass, field
 
-from numpy import ndarray, arctan2
+from numpy import ndarray, arctan2, array, stack
 
 from PySide6.QtCore import QObject, QThread, QUrl
 
@@ -98,7 +98,8 @@ class Draw():
         position: tuple[float, float, float] = (0, 0, 0),
         visible: bool = True
     ):
-        _points = points if isinstance(points, ndarray) else ndarray(points)
+        _points = points if isinstance(points, ndarray) else array(points)
+        _points = stack((_points[:-1], _points[1:]), axis=1)
         return viser_server.scene.add_line_segments(
             name, _points, color, line_width,
             wxyz=wxyz, position=position, visible=visible
