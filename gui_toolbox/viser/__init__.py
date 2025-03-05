@@ -48,15 +48,81 @@ class Interface_Config(Config.Basement):
         }
 
 
-class Server(QThread):
-    @dataclass
-    class Scene_Data(Config.Basement):
-        name: str
-        color: tuple[int, int, int]
-        position: tuple[float, float, float] = (0, 0, 0)
-        wxyz: tuple[float, float, float, float] = (1, 0, 0, 0)
+class Draw():
+    @staticmethod
+    def Add_camera(
+        viser_server: viser.ViserServer,
+        name: str,
+        img: ndarray,
+        focal_length: float,
+        scale: float = 0.3,
+        line_width: float = 2.0,
+        color: tuple[int, int, int] = (0, 255, 0),
+        wxyz: tuple[float, float, float, float] = (1, 0, 0, 0),
+        position: tuple[float, float, float] = (0, 0, 0),
         visible: bool = True
+    ):
+        _h, _w = img.shape[:1]
+        _fov = 2 * arctan2(_h / 2, focal_length)
+        return viser_server.scene.add_camera_frustum(
+            name, _fov, _w / _h, scale, line_width, color,
+            wxyz=wxyz, position=position, visible=visible
+        )
 
+    @staticmethod
+    def Add_frame(
+        viser_server: viser.ViserServer,
+        name: str,
+        color: tuple[int, int, int],
+        show_axes: bool = True,
+        axes_length: float = 0.5,
+        axes_radius: float = 0.025,
+        origin_radius: float | None = None,
+        wxyz: tuple[float, float, float, float] = (1, 0, 0, 0),
+        position: tuple[float, float, float] = (0, 0, 0),
+        visible: bool = True,
+    ):
+        return viser_server.scene.add_frame(
+            name, show_axes, axes_length, axes_radius, origin_radius,
+            origin_color=color, wxyz=wxyz, position=position, visible=visible
+        )
+
+    @staticmethod
+    def Add_line(
+        viser_server: viser.ViserServer,
+        name: str,
+        points: ndarray,
+        color: ndarray | tuple[int, int, int],
+        line_width: int = 1,
+        wxyz: tuple[float, float, float, float] = (1, 0, 0, 0),
+        position: tuple[float, float, float] = (0, 0, 0),
+        visible: bool = True
+    ):
+        return viser_server.scene.add_line_segments(
+            name, points, color, line_width,
+            wxyz=wxyz, position=position, visible=visible
+        )
+
+    @staticmethod
+    def Add_point_cloud(
+        viser_server: viser.ViserServer,
+        name: str,
+        points: ndarray,
+        color: ndarray | tuple[int, int, int],
+        point_size: float = 0.1,
+        point_shape: Literal[
+            'square', 'diamond', 'circle', 'rounded', 'sparkle'] = "rounded",
+        wxyz: tuple[float, float, float, float] = (1, 0, 0, 0),
+        position: tuple[float, float, float] = (0, 0, 0),
+        visible: bool = True,
+    ):
+        return viser_server.scene.add_point_cloud(
+            name, points, color, point_size, point_shape,
+            wxyz=wxyz, position=position, visible=visible
+        )
+
+
+class Server(QThread):
     def __init__(
         self,
         interface_cfg: Interface_Config,
@@ -65,10 +131,14 @@ class Server(QThread):
     ) -> None:
         super().__init__(parent)
         self.server = viser.ViserServer(host, port)
-        self.ui_holder = {}
-        self.play = True
 
-        self._Set_ui(self.server, interface_cfg, self.ui_holder)
+        self.ui = {}
+
+        self.display_data: dict[str, viser.SceneNodeHandle] = {}
+
+        self.is_active = True
+
+        self._Set_ui(self.server, interface_cfg, self.ui)
         self.Set_event()
 
     def _Set_ui(
@@ -97,80 +167,6 @@ class Server(QThread):
 
     def Set_event(self):
         raise NotImplementedError
-
-    def Add_cam(
-        self,
-        scene_info: Scene_Data,
-        rgb_img: ndarray,
-        focal_length: float,
-        scale: float = 0.3,
-    ):
-        _h, _w = rgb_img.shape[:1]
-        _arg = scene_info.Config_to_dict()
-        _arg.update({
-            "fov": 2 * arctan2(_h / 2, focal_length),
-            "aspect": _w / _h,
-            "scale": scale,
-            "image": rgb_img
-        })
-        self.server.scene.add_camera_frustum(**_arg)
-
-    def Add_frame(
-        self,
-        scene_info: Scene_Data,
-        show_axes: bool = True,
-        axes_length: float = 0.5,
-        axes_radius: float = 0.025,
-        origin_radius: float | None = None,
-    ):
-        _arg = scene_info.Config_to_dict()
-        _arg.update({
-            "show_axes": show_axes,
-            "axes_length": axes_length,
-            "axes_radius": axes_radius,
-            "origin_radius": origin_radius
-        })
-        _arg["origin_color"] = _arg.pop("color")
-        self.server.scene.add_frame(**_arg)
-
-    def Add_line(
-        self,
-        scene_info: Scene_Data,
-        points: ndarray,
-        colors: ndarray | None = None,
-        line_width: float = 1
-    ):
-        _arg = scene_info.Config_to_dict()
-
-        _color = _arg.pop("color")
-        _arg.update({
-            "points": points,
-            "colors": colors if colors is not None else _color,
-            "line_width": line_width
-        })
-
-        self.server.scene.add_line_segments(**_arg)
-
-    def Add_point_cloud(
-        self,
-        scene_info: Scene_Data,
-        points: ndarray,
-        colors: ndarray | None = None,
-        point_size: float = 0.1,
-        point_shape: Literal[
-            'square', 'diamond', 'circle', 'rounded', 'sparkle'] = "rounded",
-    ):
-        _arg = scene_info.Config_to_dict()
-
-        _color = _arg.pop("color")
-        _arg.update({
-            "points": points,
-            "colors": colors if colors is not None else _color,
-            "point_size": point_size,
-            "point_shape": point_shape
-        })
-
-        self.server.scene.add_point_cloud(**_arg)
 
     def Get_http_address(self):
         _server = self.server
