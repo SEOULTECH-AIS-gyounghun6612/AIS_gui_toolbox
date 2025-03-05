@@ -50,7 +50,7 @@ class Interface_Config(Config.Basement):
 
 class Draw():
     @staticmethod
-    def Add_camera(
+    def Camera(
         viser_server: viser.ViserServer,
         name: str,
         img: ndarray,
@@ -70,7 +70,7 @@ class Draw():
         )
 
     @staticmethod
-    def Add_frame(
+    def Frame(
         viser_server: viser.ViserServer,
         name: str,
         color: tuple[int, int, int],
@@ -88,23 +88,24 @@ class Draw():
         )
 
     @staticmethod
-    def Add_line(
+    def Line(
         viser_server: viser.ViserServer,
         name: str,
-        points: ndarray,
+        points: ndarray | list,
         color: ndarray | tuple[int, int, int],
         line_width: int = 1,
         wxyz: tuple[float, float, float, float] = (1, 0, 0, 0),
         position: tuple[float, float, float] = (0, 0, 0),
         visible: bool = True
     ):
+        _points = points if isinstance(points, ndarray) else ndarray(points)
         return viser_server.scene.add_line_segments(
-            name, points, color, line_width,
+            name, _points, color, line_width,
             wxyz=wxyz, position=position, visible=visible
         )
 
     @staticmethod
-    def Add_point_cloud(
+    def Point_cloud(
         viser_server: viser.ViserServer,
         name: str,
         points: ndarray,
@@ -134,7 +135,7 @@ class Server(QThread):
 
         self.ui = {}
 
-        self.display_data: dict[str, viser.SceneNodeHandle] = {}
+        self.display_data: dict[str, Any] = {}
 
         self.is_active = True
 
