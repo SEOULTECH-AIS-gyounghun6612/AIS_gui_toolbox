@@ -5,6 +5,8 @@ data/
 *.jpg
 *.npy
 
+!source/*
+
 # tmeporary or test file and directory
 temp.*
 test.*
