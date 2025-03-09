@@ -62,7 +62,7 @@ class Draw():
         position: tuple[float, float, float] = (0, 0, 0),
         visible: bool = True
     ):
-        _h, _w = img.shape[:1]
+        _h, _w = img.shape[:2]
         _fov = 2 * arctan2(_h / 2, focal_length)
         return viser_server.scene.add_camera_frustum(
             name, _fov, _w / _h, scale, line_width, color,
@@ -152,9 +152,10 @@ class Server(QThread):
         _name = cfg.name
 
         if isinstance(cfg.contents_cfg, list):
+            # is folder
             for _cfg in cfg.contents_cfg:
                 if _cfg.element_type == "folder":
-                    with server.gui.add_folder(_name):
+                    with server.gui.add_folder(_cfg.name):
                         self._Set_ui(server, _cfg, element_holder)
                 else:
                     self._Set_ui(server, _cfg, element_holder)
