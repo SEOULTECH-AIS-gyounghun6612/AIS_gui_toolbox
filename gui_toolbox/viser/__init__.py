@@ -22,7 +22,7 @@ class Interface_Config(Config.Basement):
         "folder",
         "number", "text", "vector2", "vector3", "rgb",
         "slider", "multi_slider", "progress_bar",
-        "upload_button", "button", "checkbox",
+        "upload_button", "button", "checkbox", "dropdown"
     ] | None
     contents_cfg: dict[str, Any] | list[Interface_Config] = field(init=False)
 
@@ -53,7 +53,7 @@ class Draw():
     def Camera(
         viser_server: viser.ViserServer,
         name: str,
-        img: ndarray,
+        img: ndarray | None,
         focal_length: float,
         scale: float = 0.3,
         line_width: float = 2.0,
@@ -62,7 +62,7 @@ class Draw():
         position: tuple[float, float, float] = (0, 0, 0),
         visible: bool = True
     ):
-        _h, _w = img.shape[:2]
+        _h, _w = (480, 720) if img is None else img.shape[:2]
         _fov = 2 * arctan2(_h / 2, focal_length)
         return viser_server.scene.add_camera_frustum(
             name, _fov, _w / _h, scale, line_width, color,
