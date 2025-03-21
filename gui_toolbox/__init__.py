@@ -78,7 +78,7 @@ class App(QMainWindow, Page):
         self.app = QApplication(sys.argv)
         self.config_path = cfg_path
         if cfg_path.exists():
-            _cfg = Config.Read_from_file(cfg_format, cfg_path)
+            _, _cfg = Config.Read_from_file(cfg_format, cfg_path)
         else:
             _cfg = cfg_format(
                 **App_Config(
