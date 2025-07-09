@@ -18,6 +18,8 @@
     "python.testing.unittestEnabled": true,
     "python.analysis.typeCheckingMode": "basic",
     "cSpell.words": [
-        "viser"
+        "arctan",
+        "viser",
+        "wxyz"
     ],
 }

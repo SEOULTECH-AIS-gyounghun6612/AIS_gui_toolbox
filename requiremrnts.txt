@@ -1,1 +1,0 @@
-git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_python_ex.git

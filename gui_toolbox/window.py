@@ -7,7 +7,7 @@ from pathlib import Path
 from PySide6.QtWidgets import (QWidget, QDialog, QLayout)
 from python_ex.project import Config
 
-from .widget import Interface_Config, Get_layout, Get_widget
+from .config import App_Config
 
 
 @dataclass
