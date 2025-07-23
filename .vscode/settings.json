@@ -19,6 +19,14 @@
     "python.analysis.typeCheckingMode": "basic",
     "cSpell.words": [
         "arctan",
+        "Bitonic",
+        "coordxy",
+        "gaus",
+        "glsl",
+        "hfovxy",
+        "MULTISAMPLE",
+        "ssbo",
+        "vbos",
         "viser",
         "wxyz"
     ],
