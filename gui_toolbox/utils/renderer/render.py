@@ -40,12 +40,13 @@ from OpenGL.GL import (
     # shader
     GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_COMPUTE_SHADER,
     glUseProgram, glGetUniformLocation, glUniform3fv,
+    glUniform1f, glUniform1i,
     # render: init background
     glClearColor, glClear,
     GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_STENCIL_BUFFER_BIT,
     # render: compute
     glBindBufferBase, glDispatchCompute, glMemoryBarrier,
-    glUniform1ui, glUniform1i,
+    glUniform1ui,
     GL_SHADER_STORAGE_BARRIER_BIT,
     # render: draw
     glDrawElements, glDrawArrays,
@@ -67,7 +68,7 @@ O3D_GEOMETRY = Union[
 
 
 def Build_rnd(shader_type: str) -> ShaderProgram:
-    """타입에 맞는 렌더링 셰이더 빌드."""
+    """타입에 맞는 ��더링 셰이더 빌드."""
     _pth = Path(__file__).resolve().parent / "shaders"
     _f_vtx = _pth / f"{shader_type}.vert"
     _f_frg = _pth / f"{shader_type}.frag"
@@ -108,14 +109,20 @@ def Create_uniform_setter(shader_prog):
 
     def set_int(name, value):
         glUniform1i(get_loc(name), value)
-    # 다른 타입의 세터들도 필요에 따라 추가 가능
-    # def set_float(name, value): ...
+
+    def set_float(name, value):
+        glUniform1f(get_loc(name), value)
+
+    def set_bool(name, value):
+        glUniform1i(get_loc(name), int(value))
 
     return {
         "mat4": set_mat4,
         "vec3": set_vec3,
         "uint": set_uint,
-        "int": set_int
+        "int": set_int,
+        "float": set_float,
+        "bool": set_bool
     }
 
 
@@ -474,7 +481,7 @@ class OpenGL_Renderer:
         _s_depth = self.shader_progs["depth_calc"]
         _d_setters = Create_uniform_setter(_s_depth)
         glUseProgram(_s_depth)
-        _d_setters["mat4"]("view_mat", view_mat)
+        _d_setters["mat4"]("view", view_mat)
         _d_setters["uint"]("num_elements", _n_gs)
         _d_setters["int"]("total_dim", _total_dim)
         glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["gaus"])
@@ -534,6 +541,8 @@ class OpenGL_Renderer:
                 _setters["vec3"]("hfovxy_focal", camera.Get_hfovxy_focal())
                 _setters["int"]("sh_dim", self.sh_dim)
                 _setters["int"]("render_mod", self.gau_splat_mode)
+                _setters["float"]("scale_modifier", 1.0)
+                _setters["bool"]("use_stabilization", False)
 
             # 객체 드로우 콜
             for _n in _n_list:

@@ -15,7 +15,7 @@ layout(std430, binding = 1) buffer DepthIndexBuffer {
     DepthIndexPair pairs[];
 };
 
-uniform mat4 view_mat;
+uniform mat4 view;
 uniform uint num_elements;
 // [추가] 단일 가우시안 데이터의 총 float 개수 (Stride)
 uniform int total_dim;
@@ -33,7 +33,7 @@ void main() {
                     g_data[start_idx + 2]);
 
     // 카메라 뷰 공간에서의 깊이(z값) 계산
-    vec4 pos_view = view_mat * vec4(pos, 1.0);
+    vec4 pos_view = view * vec4(pos, 1.0);
     
     // 계산된 결과를 출력 버퍼에 저장
     pairs[id].depth = pos_view.z;
