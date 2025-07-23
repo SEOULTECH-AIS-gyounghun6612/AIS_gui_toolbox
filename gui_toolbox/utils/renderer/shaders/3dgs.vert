@@ -34,8 +34,8 @@ layout (std430, binding=1) buffer gaussian_order {
     int gi[];
 };
 
-uniform mat4 view_mat;
-uniform mat4 projection_matrix;
+uniform mat4 view;
+uniform mat4 projection;
 uniform vec3 hfovxy_focal;
 uniform vec3 cam_pos;
 uniform int sh_dim; // 0: RGB, 1~3: SH Degree
@@ -124,8 +124,8 @@ void main()
 
     // --- 2. 기하학적 계산 (위치, 크기, 모양) ---
     vec4 g_pos = vec4(get_vec3(start + POS_IDX), 1.f);
-    vec4 g_pos_view = view_mat * g_pos;
-    vec4 g_pos_screen = projection_matrix * g_pos_view;
+    vec4 g_pos_view = view * g_pos;
+    vec4 g_pos_screen = projection * g_pos_view;
     g_pos_screen.xyz = g_pos_screen.xyz / g_pos_screen.w;
     g_pos_screen.w = 1.f;
 
@@ -139,7 +139,7 @@ void main()
     float g_opacity = g_data[start + OPACITY_IDX];
     mat3 cov3d = computeCov3D(g_scale * scale_modifier, g_rot);
     vec2 wh = 2 * hfovxy_focal.xy * hfovxy_focal.z;
-    vec3 cov2d = computeCov2D(g_pos_view, hfovxy_focal.z, hfovxy_focal.z, hfovxy_focal.x, hfovxy_focal.y, cov3d, view_mat);
+    vec3 cov2d = computeCov2D(g_pos_view, hfovxy_focal.z, hfovxy_focal.z, hfovxy_focal.x, hfovxy_focal.y, cov3d, view);
 
     float det = (cov2d.x * cov2d.z - cov2d.y * cov2d.y);
     if (det == 0.0f)
