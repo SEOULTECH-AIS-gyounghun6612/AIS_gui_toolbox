@@ -28,10 +28,10 @@ layout(location = 0) in vec2 position;
 #define COLOR_IDX 11  // color or sh
 
 layout (std430, binding=0) buffer gaussian_data {
-	float g_data[];
+    float g_data[];
 };
 layout (std430, binding=1) buffer gaussian_order {
-	int gi[];
+    int gi[];
 };
 
 uniform mat4 view_mat;
@@ -51,20 +51,20 @@ out vec2 coordxy;
 mat3 computeCov3D(vec3 scale, vec4 q)
 {
     mat3 S = mat3(0.f);
-	S[0][0] = scale.x;
-	S[1][1] = scale.y;
-	S[2][2] = scale.z;
-	float x = q.x;
-	float y = q.y;
-	float z = q.z;
-	float r = q.w;
+    S[0][0] = scale.x;
+    S[1][1] = scale.y;
+    S[2][2] = scale.z;
+    float x = q.x;
+    float y = q.y;
+    float z = q.z;
+    float r = q.w;
 
     mat3 R = mat3(
-		1.f - 2.f * (y * y + z * z), 2.f * (x * y - r * z), 2.f * (x * z + r * y),
-		2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
-		2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
-	);
-	mat3 M = S * R;
+        1.f - 2.f * (y * y + z * z), 2.f * (x * y - r * z), 2.f * (x * z + r * y),
+        2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
+        2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
+    );
+    mat3 M = S * R;
     mat3 Sigma = transpose(M) * M;
     return Sigma;
 }
@@ -85,68 +85,68 @@ vec3 computeCov2D(vec4 mean_view, float focal_x, float focal_y, float tan_fovx, 
 
     mat3 J = mat3(
         focal_x / t.z, 0.0f, -(focal_x * t.x) / (t.z * t.z),
-		0.0f, focal_y / t.z, -(focal_y * t.y) / (t.z * t.z),
-		0, 0, 0
+        0.0f, focal_y / t.z, -(focal_y * t.y) / (t.z * t.z),
+        0, 0, 0
     );
     mat3 W = transpose(mat3(viewmatrix));
     mat3 T = W * J;
     mat3 cov = transpose(T) * transpose(cov3D) * T;
 
-	cov[0][0] += 0.3f;
-	cov[1][1] += 0.3f;
+    cov[0][0] += 0.3f;
+    cov[1][1] += 0.3f;
     return vec3(cov[0][0], cov[0][1], cov[1][1]);
 }
 
 vec3 get_vec3(int offset)
 {
-	return vec3(g_data[offset], g_data[offset + 1], g_data[offset + 2]);
+    return vec3(g_data[offset], g_data[offset + 1], g_data[offset + 2]);
 }
 vec4 get_vec4(int offset)
 {
-	return vec4(g_data[offset], g_data[offset + 1], g_data[offset + 2], g_data[offset + 3]);
+    return vec4(g_data[offset], g_data[offset + 1], g_data[offset + 2], g_data[offset + 3]);
 }
 
 void main()
 {
-	// --- 1. 데이터 길이 및 시작점 계산 ---
-	int total_dim;
-	if (sh_dim == 0)
-	{
-		total_dim = 14; // 기본(11) + RGB(3)
-	}
-	else
-	{
-		int num_sh_coeffs = (sh_dim + 1) * (sh_dim + 1);
-		total_dim = 11 + 3 * num_sh_coeffs;
-	}
-	int boxid = gi[gl_InstanceID];
-	int start = boxid * total_dim;
+    // --- 1. 데이터 길이 및 시작점 계산 ---
+    int total_dim;
+    if (sh_dim == 0)
+    {
+        total_dim = 14; // 기본(11) + RGB(3)
+    }
+    else
+    {
+        int num_sh_coeffs = (sh_dim + 1) * (sh_dim + 1);
+        total_dim = 11 + 3 * num_sh_coeffs;
+    }
+    int boxid = gi[gl_InstanceID];
+    int start = boxid * total_dim;
 
-	// --- 2. 기하학적 계산 (위치, 크기, 모양) ---
-	vec4 g_pos = vec4(get_vec3(start + POS_IDX), 1.f);
+    // --- 2. 기하학적 계산 (위치, 크기, 모양) ---
+    vec4 g_pos = vec4(get_vec3(start + POS_IDX), 1.f);
     vec4 g_pos_view = view_mat * g_pos;
     vec4 g_pos_screen = projection_matrix * g_pos_view;
     g_pos_screen.xyz = g_pos_screen.xyz / g_pos_screen.w;
     g_pos_screen.w = 1.f;
 
-	if (any(greaterThan(abs(g_pos_screen.xyz), vec3(1.3))))
-	{
-		gl_Position = vec4(-100, -100, -100, 1);
-		return;
-	}
-	vec4 g_rot = get_vec4(start + ROT_IDX);
-	vec3 g_scale = get_vec3(start + SCALE_IDX);
-	float g_opacity = g_data[start + OPACITY_IDX];
-	mat3 cov3d = computeCov3D(g_scale * scale_modifier, g_rot);
+    if (any(greaterThan(abs(g_pos_screen.xyz), vec3(1.3))))
+    {
+        gl_Position = vec4(-100, -100, -100, 1);
+        return;
+    }
+    vec4 g_rot = get_vec4(start + ROT_IDX);
+    vec3 g_scale = get_vec3(start + SCALE_IDX);
+    float g_opacity = g_data[start + OPACITY_IDX];
+    mat3 cov3d = computeCov3D(g_scale * scale_modifier, g_rot);
     vec2 wh = 2 * hfovxy_focal.xy * hfovxy_focal.z;
     vec3 cov2d = computeCov2D(g_pos_view, hfovxy_focal.z, hfovxy_focal.z, hfovxy_focal.x, hfovxy_focal.y, cov3d, view_mat);
 
-	float det = (cov2d.x * cov2d.z - cov2d.y * cov2d.y);
-	if (det == 0.0f)
-		gl_Position = vec4(0.f, 0.f, 0.f, 0.f);
+    float det = (cov2d.x * cov2d.z - cov2d.y * cov2d.y);
+    if (det == 0.0f)
+        gl_Position = vec4(0.f, 0.f, 0.f, 0.f);
     
     float det_inv = 1.f / det;
-	conic = vec3(cov2d.z * det_inv, -cov2d.y * det_inv, cov2d.x * det_inv);
+    conic = vec3(cov2d.z * det_inv, -cov2d.y * det_inv, cov2d.x * det_inv);
     
     vec2 quadwh_scr = vec2(3.f * sqrt(cov2d.x), 3.f * sqrt(cov2d.z));
     vec2 quadwh_ndc = quadwh_scr / wh * 2;
@@ -156,15 +156,15 @@ void main()
     
     alpha = g_opacity;
 
-	// --- 3. 렌더링 모드에 따른 분기 처리 ---
-	if (render_mod == 1) // 1: depth
-	{
-		float depth = -g_pos_view.z;
-		depth = depth < 0.05 ? 1 : depth;
-		depth = 1 / depth;
-		color = vec3(depth, depth, depth);
-		return;
-	}
+    // --- 3. 렌더링 모드에 따른 분기 처리 ---
+    if (render_mod == 1) // 1: depth
+    {
+        float depth = -g_pos_view.z;
+        depth = depth < 0.05 ? 1 : depth;
+        depth = 1 / depth;
+        color = vec3(depth, depth, depth);
+        return;
+    }
 
     if (sh_dim == 0)
     {

@@ -44,7 +44,8 @@ from OpenGL.GL import (
     glClearColor, glClear,
     GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_STENCIL_BUFFER_BIT,
     # render: compute
-    glBindBufferBase, glDispatchCompute, glMemoryBarrier, glUniform1ui,
+    glBindBufferBase, glDispatchCompute, glMemoryBarrier,
+    glUniform1ui, glUniform1i,
     GL_SHADER_STORAGE_BARRIER_BIT,
     # render: draw
     glDrawElements, glDrawArrays,
@@ -105,13 +106,16 @@ def Create_uniform_setter(shader_prog):
     def set_uint(name, value):
         glUniform1ui(get_loc(name), value)
 
+    def set_int(name, value):
+        glUniform1i(get_loc(name), value)
     # 다른 타입의 세터들도 필요에 따라 추가 가능
     # def set_float(name, value): ...
 
     return {
         "mat4": set_mat4,
         "vec3": set_vec3,
-        "uint": set_uint
+        "uint": set_uint,
+        "int": set_int
     }
 
 
@@ -223,6 +227,9 @@ class OpenGL_Renderer:
         self.quad_vao, self.quad_vbo, self.quad_ebo = 0, 0, 0
         self.quad_idx_count = 0
 
+        self.sh_dim: int = 0
+        self.gau_splat_mode: int = 0
+
     def __Create_quad_mesh(self):
         _vts = np.array([-1,1, 1,1, 1,-1, -1,-1], dtype=np.float32)
         _faces = np.array([0,1,2, 0,2,3], dtype=np.uint32)
@@ -243,7 +250,8 @@ class OpenGL_Renderer:
         """렌더러 초기화 (셰이더 컴파일, GL 옵션, Quad 메시 생성)."""
         # 셰이더 빌드
         _render_progs = {s: Build_rnd(s) for s in Shader_Type}
-        _compute_progs = Build_compute(["depth_calc", "bitonic_sort"])
+        _compute_progs = Build_compute([
+            "depth_calc", "bitonic_sort", "reorder_data"])
         self.shader_progs = {**_render_progs, **_compute_progs}
 
         for opt in self.enable_opts:
@@ -329,14 +337,22 @@ class OpenGL_Renderer:
         _ssbo_sort = glGenBuffers(1)
         glBindBuffer(Buf_Name.SSBO, _ssbo_sort)
         glBufferData(Buf_Name.SSBO, _num_3dgs * 8, None, Draw_Opt.DYNAMIC)
+
+        _ssbo_reordered = glGenBuffers(1)
+        glBindBuffer(Buf_Name.SSBO, _ssbo_reordered)
+        glBufferData(Buf_Name.SSBO, _f_data.nbytes, None, Draw_Opt.DYNAMIC)
         glBindBuffer(Buf_Name.SSBO, 0)
 
         return Render_Object(
             vao=self.quad_vao,
             shader_type=Shader_Type.GAUSSIAN_SPLAT,
             prim_mode=Prim.TRIANGLES,
-            model_mat=res.pose, 
-            buffers={"gaus": _ssbo_gaus, "sort": _ssbo_sort},
+            model_mat=res.pose,
+            buffers={
+                "gaus": _ssbo_gaus,
+                "sort": _ssbo_sort,
+                "reordered": _ssbo_reordered
+            },
             inst_count=_num_3dgs
         )
 
@@ -430,8 +446,7 @@ class OpenGL_Renderer:
 
         glBindVertexArray(obj.vao)
         if obj.shader_type is Shader_Type.GAUSSIAN_SPLAT:
-            glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["gaus"])
-            glBindBufferBase(Buf_Name.SSBO, 1, obj.buffers["sort"])
+            glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["reordered"])
             glDrawElementsInstanced(
                 Prim.TRIANGLES, self.quad_idx_count,
                 GL_UNSIGNED_INT, None, obj.inst_count
@@ -446,6 +461,13 @@ class OpenGL_Renderer:
         _n_gs = obj.inst_count
         if _n_gs == 0:
             return
+        _sh_dim = self.sh_dim # 예시: SH Degree 0 (RGB)
+        if _sh_dim == 0:
+            _total_dim = 14
+        else:
+            _num_sh_coeffs = (_sh_dim + 1) * (_sh_dim + 1)
+            _total_dim = 11 + 3 * _num_sh_coeffs
+
         _num_groups = (_n_gs + 1023) // 1024
 
         # Depth Calculation
@@ -454,6 +476,7 @@ class OpenGL_Renderer:
         glUseProgram(_s_depth)
         _d_setters["mat4"]("view_mat", view_mat)
         _d_setters["uint"]("num_elements", _n_gs)
+        _d_setters["int"]("total_dim", _total_dim)
         glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["gaus"])
         glBindBufferBase(Buf_Name.SSBO, 1, obj.buffers["sort"])
         glDispatchCompute(_num_groups, 1, 1)
@@ -472,22 +495,35 @@ class OpenGL_Renderer:
                 glDispatchCompute(_num_groups, 1, 1)
                 glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
 
+        _s_reorder = self.shader_progs["reorder_data"]
+        _r_setters = Create_uniform_setter(_s_reorder)
+        glUseProgram(_s_reorder)
+        _r_setters["uint"]("num_elements", _n_gs)
+        _r_setters["int"]("total_dim", _total_dim)
+        # 셰이더의 binding에 맞춰 버퍼 연결
+        glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["sort"])
+        glBindBufferBase(Buf_Name.SSBO, 1, obj.buffers["gaus"])
+        glBindBufferBase(Buf_Name.SSBO, 2, obj.buffers["reordered"])
+        glDispatchCompute(_num_groups, 1, 1)
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+
+
     def Render(self, camera: View_Cam):
         """장면의 모든 객체 렌더링 (유니폼 설정 일반화)."""
         self.__Background_init()
         _r_block = self.render_block
 
         # 1. Compute Pass: 3DGS 깊이 정렬
-        # _gs_names = self.shader_obj_map[Shader_Type.GAUSSIAN_SPLAT]
-        # for _n in _gs_names:
-        #     self.__Depth_sort_for_3dgs(_r_block[_n], camera.view_mat)
+        _gs_names = self.shader_obj_map[Shader_Type.GAUSSIAN_SPLAT]
+        for _n in _gs_names:
+            self.__Depth_sort_for_3dgs(_r_block[_n], camera.view_mat)
 
         # 2. Render Pass: 모든 객체 렌더링
         for _s_type, _n_list in self.shader_obj_map.items():
             if not _n_list:
                 continue
 
-            _shader = self.shader_progs[_s_type.value]
+            _shader = self.shader_progs[_s_type]
             glUseProgram(_shader)
             _setters = Create_uniform_setter(_shader)
             _setters["mat4"]("view", camera.view_mat)
@@ -496,6 +532,8 @@ class OpenGL_Renderer:
             if _s_type is Shader_Type.GAUSSIAN_SPLAT:
                 _setters["vec3"]("cam_pos", camera.position)
                 _setters["vec3"]("hfovxy_focal", camera.Get_hfovxy_focal())
+                _setters["int"]("sh_dim", self.sh_dim)
+                _setters["int"]("render_mod", self.gau_splat_mode)
 
             # 객체 드로우 콜
             for _n in _n_list:
