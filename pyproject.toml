@@ -12,9 +12,10 @@ authors = [
 ]
 description = "A GUI toolbox with an OpenGL renderer for 3D visualization, including 3D Gaussian Splatting."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Multimedia :: Graphics :: 3D Rendering",
