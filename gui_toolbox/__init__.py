@@ -14,7 +14,6 @@ class Application_Starter():
 
     def Start(self, main_window: Main_Window):
         main_window.show()  # display UI
-        main_window.Run()
         _status = self.app.exec_()
         main_window.Stop()
 
