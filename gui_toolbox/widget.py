@@ -11,10 +11,10 @@ from OpenGL.GL import glViewport
 # import open3d as o3d
 
 # 제공된 렌더러 모듈 및 데이터 클래스 임포트
-from .utils.renderer.scene import (
+from .renderer.scene import (
     View_Cam, Create_dummy_3DGS
 )
-from .utils.renderer.render import (
+from .renderer.render import (
     OpenGL_Renderer, Resource,
     Render_Opt, Clear_Opt, Obj_Type, Draw_Opt
 )

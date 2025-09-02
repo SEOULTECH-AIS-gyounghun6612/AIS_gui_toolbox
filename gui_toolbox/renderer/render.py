@@ -68,7 +68,7 @@ O3D_GEOMETRY = Union[
 
 
 def Build_rnd(shader_type: str) -> ShaderProgram:
-    """타입에 맞는 ��더링 셰이더 빌드."""
+    """타입에 맞는 렌더링 셰이더 빌드."""
     _pth = Path(__file__).resolve().parent / "shaders"
     _f_vtx = _pth / f"{shader_type}.vert"
     _f_frg = _pth / f"{shader_type}.frag"
