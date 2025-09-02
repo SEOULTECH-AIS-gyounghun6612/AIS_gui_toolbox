@@ -75,6 +75,7 @@ class Shader_Type(StrEnum):
 class Obj_Type(StrEnum):
     GAUSSIAN_SPLAT = "3dgs"
     TRAJ = "trajectory"
+    SIMPLE = "simple"
 
 # --- Data Structures ---
 

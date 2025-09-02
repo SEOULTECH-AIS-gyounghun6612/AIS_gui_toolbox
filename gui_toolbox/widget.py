@@ -10,7 +10,8 @@ from .renderer import (
     OpenGL_Renderer,
     Resource,
     Render_Opt,
-    Clear_Opt
+    Clear_Opt,
+    Sorter_Type
 )
 
 
@@ -65,7 +66,6 @@ class ViewerWidget(QOpenGLWidget):
     def paintGL(self):
         """화면을 다시 그려야 할 때마다 호출됩니다."""
         self.renderer.Render(self.camera)
-        # [수정] 여기서 self.update()를 호출하면 무한 루프에 빠지므로 제거합니다.
 
     # --- 이벤트 핸들러 ---
     def mousePressEvent(self, event):
@@ -83,8 +83,8 @@ class ViewerWidget(QOpenGLWidget):
             self.camera.Pan(dx, dy)
 
         self.last_mouse_pos = event.pos()
-        self.update() # [이동] 카메라 상태가 변경되었으므로 여기서 화면 갱신을 요청합니다.
+        self.update()
 
     def wheelEvent(self, event):
         self.camera.Zoom(event.angleDelta().y())
-        self.update() # [이동] 카메라 상태가 변경되었으므로 여기서 화면 갱신을 요청합니다.
+        self.update()

@@ -11,7 +11,9 @@ from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout
 from gui_toolbox import Application_Starter, Main_Window
 from gui_toolbox.widget import ViewerWidget
 from gui_toolbox.renderer import (
-    Resource, Obj_Type, Sorter_Type,
+    Resource,
+    Obj_Type,
+    Sorter_Type,
     Create_random_3DGS
 )
 
