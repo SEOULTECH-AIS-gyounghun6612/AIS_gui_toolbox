@@ -29,4 +29,5 @@ dependencies = [
     "PyOpenGL",
     "PyOpenGL_accelerate",
     "python_toolbox @ git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_python_toolbox.git",
+    "vision_toolbox @ git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_vision_toolbox.git",
 ]
