@@ -16,7 +16,7 @@ from .definitions import (
     Resource, Render_Object, Render_Opt, Clear_Opt,
     Shader_Type, Buf_Name, Draw_Opt, Sorter_Type,
     Build_rnd, Build_compute, Create_uniform_setter,
-    OBJ_TO_SHADER, DEFAULT_RENDER_OPT, get_3dgs_total_dim
+    OBJ_TO_SHADER, DEFAULT_RENDER_OPT, Get_3dgs_total_dim
 )
 from .scene import View_Cam
 from .handler import Sorter, Handler
@@ -185,7 +185,7 @@ class OpenGL_Renderer:
         self.handlers[obj.shader_type].draw(obj, self.quad_idx_count)
 
     def __Sort_and_reorder_gaussians(self, obj: Render_Object, camera: View_Cam):
-        _total_dim = get_3dgs_total_dim(self.sh_dim)
+        _total_dim = Get_3dgs_total_dim(self.sh_dim)
         self.sorter.sort(obj, camera.view_mat, _total_dim)
 
     def Render(self, camera: View_Cam):
