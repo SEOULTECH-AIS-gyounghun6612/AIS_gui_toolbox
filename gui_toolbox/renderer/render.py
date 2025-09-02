@@ -50,9 +50,6 @@ class OpenGL_Renderer:
         self.sorter: Sorter.Base | None = None
         self.handlers: dict[Shader_Type, Handler.Base] = {}
 
-        self._initialized: bool = False
-        self._pending_resources: dict[str, Resource] = {}
-
     def __Create_quad_mesh(self):
         _vts = np.array([-1,1, 1,1, 1,-1, -1,-1], dtype=np.float32)
         _faces = np.array([0,1,2, 0,2,3], dtype=np.uint32)
@@ -115,7 +112,6 @@ class OpenGL_Renderer:
             Shader_Type.GAUSSIAN_SPLAT: Handler.Gaussian_Splat(
                 self.quad_vao, self.sorter_type)
         }
-        self._initialized = True
 
     def __Bind_geom(self, vao, vbos, ebo, res: Resource) -> Render_Object:
         _shader_type = OBJ_TO_SHADER[res.obj_type]
@@ -148,10 +144,6 @@ class OpenGL_Renderer:
             self.handlers[_obj.shader_type].Release(_obj)
 
     def Set_resources(self, res_block: dict[str, Resource]):
-        if not self._initialized:
-            self._pending_resources.update(res_block)
-            return
-
         _old_names = set(self.render_block.keys())
         _new_names = set(res_block.keys())
         _to_del = list(_old_names - _new_names)
@@ -197,13 +189,6 @@ class OpenGL_Renderer:
         self.sorter.Sort(obj, camera.view_mat, _total_dim)
 
     def Render(self, camera: View_Cam):
-        if not self._initialized:
-            return
-        
-        if self._pending_resources:
-            self.Set_resources(self._pending_resources)
-            self._pending_resources = {}
-
         self.__Background_init()
         _r_block = self.render_block
 

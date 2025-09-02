@@ -4,22 +4,14 @@ from PySide6.QtCore import Qt, QPoint
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL.GL import glViewport
 
-# 제공된 렌더러 모듈 및 데이터 클래스 임포트
 from .renderer import (
-    View_Cam,
-    OpenGL_Renderer,
-    Resource,
-    Render_Opt,
-    Clear_Opt,
-    Sorter_Type
+    View_Cam, OpenGL_Renderer, Resource, Render_Opt,
+    Clear_Opt, Sorter_Type
 )
 
 
 CV_TO_GL = np.array([
-    [1,0,0,0],
-    [0,-1,0,0],
-    [0,0,-1,0],
-    [0,0,0,1]
+    [1,0,0,0], [0,-1,0,0], [0,0,-1,0], [0,0,0,1]
 ], dtype=np.float32)
 
 
@@ -36,13 +28,13 @@ class ViewerWidget(QOpenGLWidget):
         super().__init__(parent)
         self.camera = View_Cam(self.width(), self.height())
         self.last_mouse_pos = QPoint()
-        self.resources: dict[str, Resource] = {}
+        
+        self._gl_initialized: bool = False
+        self._pending_assets: dict[str, Resource] = {}
 
         _opts = enable_opts if enable_opts is not None else (
-            Render_Opt.DEPTH,
-            Render_Opt.BLEND,
-            Render_Opt.MULTISAMPLE_AA,
-            Render_Opt.P_ABLE_P_SIZE
+            Render_Opt.DEPTH, Render_Opt.BLEND,
+            Render_Opt.MULTISAMPLE_AA, Render_Opt.P_ABLE_P_SIZE
         )
         self.renderer = OpenGL_Renderer(
             bg_color=bg_color,
@@ -52,12 +44,22 @@ class ViewerWidget(QOpenGLWidget):
         )
 
     def initializeGL(self):
-        """위젯 생성 시 한 번 호출: 렌더러 초기화."""
+        """위젯 생성 시 한 번 호출: 렌더러 초기화 및 대기 중인 에셋 처리."""
         self.renderer.initialize()
+        self._gl_initialized = True
+
+        if self._pending_assets:
+            self.add_asset(self._pending_assets)
+            self._pending_assets = {}
 
     def add_asset(self, data: dict[str, Resource]):
+        """렌더링할 에셋을 추가하거나 업데이트합니다."""
+        if not self._gl_initialized:
+            self._pending_assets.update(data)
+            return
+        
         self.renderer.Set_resources(data)
-        self.update() # 화면 갱신 요청
+        self.update()
 
     def resizeGL(self, w: int, h: int):
         glViewport(0, 0, w, h)
@@ -65,6 +67,8 @@ class ViewerWidget(QOpenGLWidget):
 
     def paintGL(self):
         """화면을 다시 그려야 할 때마다 호출됩니다."""
+        if not self._gl_initialized:
+            return
         self.renderer.Render(self.camera)
 
     # --- 이벤트 핸들러 ---
@@ -74,7 +78,6 @@ class ViewerWidget(QOpenGLWidget):
     def mouseMoveEvent(self, event):
         dx = event.pos().x() - self.last_mouse_pos.x()
         dy = event.pos().y() - self.last_mouse_pos.y()
-
         buttons = event.buttons()
         
         if buttons & Qt.MouseButton.LeftButton:
