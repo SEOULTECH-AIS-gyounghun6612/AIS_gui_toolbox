@@ -1,22 +1,16 @@
 import numpy as np
 
-from open3d import geometry, utility
-
-from PySide6.QtCore import Qt, QPoint, QTimer
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtCore import Qt, QPoint
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL.GL import glViewport
 
-# 테스트 데이터 생성을 위해 open3d 임포트
-# import open3d as o3d
-
 # 제공된 렌더러 모듈 및 데이터 클래스 임포트
-from .renderer.scene import (
-    View_Cam, Create_dummy_3DGS
-)
-from .renderer.render import (
-    OpenGL_Renderer, Resource,
-    Render_Opt, Clear_Opt, Obj_Type, Draw_Opt
+from .renderer import (
+    View_Cam,
+    OpenGL_Renderer,
+    Resource,
+    Render_Opt,
+    Clear_Opt
 )
 
 
@@ -35,7 +29,8 @@ class ViewerWidget(QOpenGLWidget):
         parent=None,
         bg_color: tuple = (0.5, 0.5, 0.5, 1.0),
         enable_opts: tuple[Render_Opt, ...] | None = None,
-        clear_mask: Clear_Opt = Clear_Opt.COLOR | Clear_Opt.DEPTH
+        clear_mask: Clear_Opt = Clear_Opt.COLOR | Clear_Opt.DEPTH,
+        sorter_type: Sorter_Type = Sorter_Type.OPENGL
     ):
         super().__init__(parent)
         self.camera = View_Cam(self.width(), self.height())
@@ -51,32 +46,13 @@ class ViewerWidget(QOpenGLWidget):
         self.renderer = OpenGL_Renderer(
             bg_color=bg_color,
             enable_opts=_opts,
-            clear_mask=clear_mask
+            clear_mask=clear_mask,
+            sorter_type=sorter_type
         )
 
     def initializeGL(self):
         """위젯 생성 시 한 번 호출: 렌더러 초기화."""
         self.renderer.initialize()
-
-        # debug
-        _test_data = Create_dummy_3DGS()
-
-        _test_pc = geometry.PointCloud()
-        _test_pc.points = utility.Vector3dVector(_test_data.points)
-        _test_pc.colors = utility.Vector3dVector(_test_data.colors)
-
-        self.add_asset({
-            "test_3dgs": Resource(
-                obj_type=Obj_Type.GAUSSIAN_SPLAT,
-                data=_test_data,
-                draw_opt=Draw_Opt.DYNAMIC
-            ),
-            "test_pc": Resource(
-                obj_type=Obj_Type.TRAJ, # TRAJ Enum 사용
-                data=_test_pc, 
-                draw_opt=Draw_Opt.STATIC
-            )
-        })
 
     def add_asset(self, data: dict[str, Resource]):
         self.renderer.Set_resources(data)
@@ -100,8 +76,7 @@ class ViewerWidget(QOpenGLWidget):
         dy = event.pos().y() - self.last_mouse_pos.y()
 
         buttons = event.buttons()
-        modifiers = event.modifiers()
-
+        
         if buttons & Qt.MouseButton.LeftButton:
             self.camera.Tilt(dx, dy)
         elif buttons & Qt.MouseButton.RightButton:

@@ -1,3 +1,6 @@
 [submodule "submodules/python_toolbox"]
 	path = submodules/python_toolbox
 	url = https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_python_toolbox.git
+[submodule "submodules/vision_toolbox"]
+	path = submodules/vision_toolbox
+	url = https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_vision_toolbox.git

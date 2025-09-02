@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from vision_toolbox.utils.vision_types import TP_M
+from vision_toolbox.utils.vision_types import TF_M
 from vision_toolbox.asset import (
     Image, Point_Cloud, Gaussian_3D,
     Camera
@@ -46,12 +46,12 @@ class Scene:
     # 카메라 에셋 저장소 (Asset)
     cams: Camera = field(default_factory=Camera)
     # 모든 카메라 포즈를 담는 단일 배열
-    cam_poses: TP_M = field(
+    cam_poses: TF_M = field(
         default_factory=lambda: np.empty((0, 4, 4), dtype=np.float32)
     )
 
     # 모든 3D 객체 포즈를 담는 단일 배열
-    object_poses: TP_M = field(
+    object_poses: TF_M = field(
         default_factory=lambda: np.empty((0, 4, 4), dtype=np.float32)
     )
 
@@ -152,7 +152,7 @@ class View_Cam:
         self.radius = max(self.radius, 0.1)
         self.__Update_view_mat()
 
-    def Set_view_mat(self, view_mat: TP_M):
+    def Set_view_mat(self, view_mat: TF_M):
         self.view_mat = view_mat
         _c2w = np.linalg.inv(view_mat)
         self.c2w_mat = _c2w

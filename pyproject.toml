@@ -28,6 +28,7 @@ dependencies = [
     "numpy", # numpy는 대부분의 그래픽스/ML 라이브러리에서 필수적이므로 명시적으로 추가합니다.
     "PyOpenGL",
     "PyOpenGL_accelerate",
+    "plyfile",
     "python_toolbox @ git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_python_toolbox.git",
     "vision_toolbox @ git+https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_vision_toolbox.git",
 ]
