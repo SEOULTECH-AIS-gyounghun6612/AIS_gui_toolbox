@@ -77,7 +77,7 @@ class Render_Example_Window(Main_Window):
 
         self.viewer.add_asset({
             "axis": Resource(
-                obj_type=Obj_Type.SIMPLE,
+                obj_type=Obj_Type.TRAJ,
                 data=axis_mesh
             )
         })
