@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, InitVar
 from pathlib import Path
 
 from PySide6.QtWidgets import (QWidget, QDialog, QLayout)
-from python_ex.project import Config
+from python_toolbox.project import Config
 
 from .config import App_Config
 

@@ -23,7 +23,7 @@
   # clone this repository
   git clone https://github.com/SEOULTECH-AIS-gyounghun6612/AIS_gui_toolbox.git
 
-  cd AIS_python_ex
+  cd AIS_gui_toolbox
 
   # install 
   pip install -e .
