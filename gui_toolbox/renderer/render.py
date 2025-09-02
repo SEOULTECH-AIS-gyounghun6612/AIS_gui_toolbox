@@ -116,7 +116,7 @@ class OpenGL_Renderer:
     def __Bind_geom(self, vao, vbos, ebo, res: Resource) -> Render_Object:
         _shader_type = OBJ_TO_SHADER[res.obj_type]
         _handler = self.handlers[_shader_type]
-        return _handler.bind(vao, vbos, ebo, res)
+        return _handler.Bind(vao, vbos, ebo, res)
 
     def __Prepare_gl_buffers(self, to_add: dict[str, Resource]):
         _n_vao = len(to_add)
@@ -141,7 +141,7 @@ class OpenGL_Renderer:
             if not _obj:
                 continue
             _s_table[_obj.shader_type].remove(name)
-            self.handlers[_obj.shader_type].release(_obj)
+            self.handlers[_obj.shader_type].Release(_obj)
 
     def Set_resources(self, res_block: dict[str, Resource]):
         _old_names = set(self.render_block.keys())
@@ -182,11 +182,11 @@ class OpenGL_Renderer:
 
     def __Render_each_obj(self, obj: Render_Object, setters: dict):
         setters["mat4"]("model", obj.model_mat)
-        self.handlers[obj.shader_type].draw(obj, self.quad_idx_count)
+        self.handlers[obj.shader_type].Draw(obj, self.quad_idx_count)
 
     def __Sort_and_reorder_gaussians(self, obj: Render_Object, camera: View_Cam):
         _total_dim = Get_3dgs_total_dim(self.sh_dim)
-        self.sorter.sort(obj, camera.view_mat, _total_dim)
+        self.sorter.Sort(obj, camera.view_mat, _total_dim)
 
     def Render(self, camera: View_Cam):
         self.__Background_init()
