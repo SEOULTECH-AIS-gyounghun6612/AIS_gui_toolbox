@@ -189,6 +189,13 @@ class OpenGL_Renderer:
         self.sorter.Sort(obj, camera.view_mat, _total_dim)
 
     def Render(self, camera: View_Cam):
+        if not self._initialized:
+            return
+        
+        if self._pending_resources:
+            self.__process_resources(self._pending_resources)
+            self._pending_resources = {}
+
         self.__Background_init()
         _r_block = self.render_block
 
