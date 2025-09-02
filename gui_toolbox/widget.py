@@ -1,6 +1,6 @@
 import numpy as np
 
-from PySide6.QtCore import Qt, QPoint
+from PySide6.QtCore import Qt, QPoint, Signal
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL.GL import glViewport
 
@@ -17,6 +17,8 @@ CV_TO_GL = np.array([
 
 class ViewerWidget(QOpenGLWidget):
     """PyQt6 QOpenGLWidget을 상속받는 3D 뷰어 위젯"""
+    initialized = Signal()
+
     def __init__(
         self,
         parent=None,
@@ -51,6 +53,8 @@ class ViewerWidget(QOpenGLWidget):
         if self._pending_assets:
             self.add_asset(self._pending_assets)
             self._pending_assets = {}
+        
+        self.initialized.emit()
 
     def add_asset(self, data: dict[str, Resource]):
         """렌더링할 에셋을 추가하거나 업데이트합니다."""
@@ -70,6 +74,13 @@ class ViewerWidget(QOpenGLWidget):
         if not self._gl_initialized:
             return
         self.renderer.Render(self.camera)
+
+    def cleanup(self):
+        """Cleans up OpenGL resources. Must be called before the widget is destroyed."""
+        if self._gl_initialized:
+            self.makeCurrent()
+            self.renderer.cleanup()
+            self.doneCurrent()
 
     # --- 이벤트 핸들러 ---
     def mousePressEvent(self, event):

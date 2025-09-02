@@ -31,47 +31,24 @@ class Render_Example_Window(Main_Window):
         UI 초기화. ViewerWidget과 버튼을 생성하고 레이아웃에 배치합니다.
         """
         # --- 위젯 생성 ---
-        # ViewerWidget 인스턴스 생성
         self.viewer = ViewerWidget(parent=self, sorter_type=Sorter_Type.OPENGL)
-        # 무작위 3DGS를 추가하는 버튼 생성
         self.add_random_button = QPushButton("Add Random 3DGS")
 
         # --- 레이아웃 설정 ---
-        # 수직 레이아웃에 뷰어와 버튼을 추가
         layout = QVBoxLayout()
         layout.addWidget(self.viewer)
         layout.addWidget(self.add_random_button)
-
-        # 레이아웃을 담을 중앙 위젯 생성 및 설정
         central_widget = QWidget()
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
         # --- 시그널-슬롯 연결 ---
         self.add_random_button.clicked.connect(self.add_random_gaussians)
+        self.viewer.initialized.connect(self.on_viewer_ready)
 
-    def add_random_gaussians(self):
-        """'Add Random 3DGS' 버튼 클릭 시 호출되는 슬롯."""
-        self.random_dgs_count += 1
-        new_name = f"random_dgs_{self.random_dgs_count}"
-        print(f"Adding new asset: {new_name}")
-
-        # 무작위 3DGS 데이터 생성
-        random_gaussians = Create_random_3DGS(num_points=2000)
-
-        # 생성된 데이터를 렌더러에 리소스로 추가
-        self.viewer.add_asset({
-            new_name: Resource(
-                obj_type=Obj_Type.GAUSSIAN_SPLAT,
-                data=random_gaussians
-            )
-        })
-
-    def Run(self):
-        """
-        애플리케이션 실행 시 호출됩니다.
-        좌표축과 같은 기본 에셋을 추가합니다.
-        """
+    def on_viewer_ready(self):
+        """ViewerWidget 초기화가 완료된 후 호출되는 슬롯."""
+        print("Viewer is initialized and ready.")
         axis_mesh = o3d.geometry.TriangleMesh.create_coordinate_frame(
             size=0.5, origin=[0, 0, 0])
 
@@ -81,6 +58,23 @@ class Render_Example_Window(Main_Window):
                 data=axis_mesh
             )
         })
+
+    def add_random_gaussians(self):
+        """'Add Random 3DGS' 버튼 클릭 시 호출되는 슬롯."""
+        self.random_dgs_count += 1
+        new_name = f"random_dgs_{self.random_dgs_count}"
+        print(f"Adding new asset: {new_name}")
+
+        random_gaussians = Create_random_3DGS(num_points=2000)
+        self.viewer.add_asset({
+            new_name: Resource(
+                obj_type=Obj_Type.GAUSSIAN_SPLAT,
+                data=random_gaussians
+            )
+        })
+
+    def Run(self):
+        """애플리케이션 실행 시 호출됩니다."""
         print("Render_Example_Window is running.")
         print(" - Mouse Left Button + Drag: Rotate Camera")
         print(" - Mouse Right Button + Drag: Pan Camera")
@@ -90,6 +84,7 @@ class Render_Example_Window(Main_Window):
     def Stop(self):
         """애플리케이션 종료 시 호출됩니다."""
         print("Render_Example_Window is stopping.")
+        self.viewer.cleanup()
 
 
 def main():
