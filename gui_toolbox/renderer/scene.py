@@ -182,7 +182,7 @@ def Create_dummy_3DGS(
     num_points=5000, file_name="test_dummy_3DGS.ply"
 ) -> Gaussian_3D:
     print(f"Creating {num_points} dummy Gaussian splats...")
-    # 원环(torus) 모양의 포인트 생성
+    # 원환(torus) 모양의 포인트 생성
     radius_torus, radius_tube = 1.5, 1.0
     _u = np.random.rand(num_points) * 2 * np.pi
     _v = np.random.rand(num_points) * 2 * np.pi
@@ -249,4 +249,43 @@ def Create_axis_3DGS(file_name="test_axis_3DGS.ply") -> Gaussian_3D:
         scales=_s,
         opacities=_a,
         colors=_sh_features
+    )
+
+def Create_random_3DGS(
+    num_points=1000,
+    center: np.ndarray = np.array([0.0, 0.0, 0.0]),
+    radius: float = 1.0,
+    file_name="random_dummy_3DGS.ply"
+) -> Gaussian_3D:
+    """구(sphere) 안에 무작위로 흩뿌려진 3DGS 객체를 생성합니다."""
+    print(f"Creating {num_points} random Gaussian splats...")
+
+    # 구 안에 균일하게 분포된 무작위 포인트 생성
+    phi = np.random.uniform(0, 2 * np.pi, num_points)
+    costheta = np.random.uniform(-1, 1, num_points)
+    u = np.random.uniform(0, 1, num_points)
+
+    theta = np.arccos(costheta)
+    r = radius * np.cbrt(u)
+
+    _x = r * np.sin(theta) * np.cos(phi) + center[0]
+    _y = r * np.sin(theta) * np.sin(phi) + center[1]
+    _z = r * np.cos(theta) + center[2]
+
+    _pts = np.vstack([_x, _y, _z]).T.astype(np.float32)
+    _colors = np.random.rand(num_points, 3).astype(np.float32)
+    _a = np.random.uniform(0.7, 1.0, (num_points, 1)).astype(np.float32)
+    _s = np.random.uniform(0.01, 0.05, (num_points, 3)).astype(np.float32)
+
+    # 정규화된 쿼터니언 (기본 회전 없음)
+    _rot = np.zeros((num_points, 4), dtype=np.float32)
+    _rot[:, 3] = 1.0
+
+    return Gaussian_3D(
+        relative_path=file_name,
+        points=_pts,
+        opacities=_a,
+        scales=_s,
+        rotations=_rot,
+        colors=_colors
     )
