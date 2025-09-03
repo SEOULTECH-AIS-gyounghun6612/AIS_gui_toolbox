@@ -1,13 +1,13 @@
-#version 430 core
+#version 450 core
+precision mediump float;
 
-in vec4 vColor;
-in vec2 vPosition;
+in vec4 v_color;
+in vec2 v_position;
+layout(location = 0) out vec4 out_color;
 
-layout(location = 0) out vec4 outColor;
-
-void main () {    
-  float A = -dot(vPosition, vPosition);
+void main () {
+  float A = -dot(v_position, v_position);
   if (A < -4.0) discard;
-  float B = exp(A) * vColor.a;
-  outColor = vec4(B * vColor.rgb, B);
+  float B = exp(A) * v_color.a;
+  out_color = vec4(B * v_color.rgb, B);
 }

@@ -84,7 +84,7 @@ class ControlPanelWidget(QWidget):
     def __init__(self, viewer_widget: ViewerWidget, parent=None):
         super().__init__(parent)
         self.viewer = viewer_widget
-        self.view_cam = self.viewer.view_cam
+        self.view_cam = self.viewer.scene_manager.view_cam
         self._updating_ui = False
 
         main_layout = QVBoxLayout()
