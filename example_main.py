@@ -79,21 +79,15 @@ class Render_Example_Window(Main_Window):
         self.dx_spin = QDoubleSpinBox(); self.dx_spin.setRange(-1000, 1000); self.dx_spin.setSingleStep(0.1)
         self.dy_spin = QDoubleSpinBox(); self.dy_spin.setRange(-1000, 1000); self.dy_spin.setSingleStep(0.1)
         self.dz_spin = QDoubleSpinBox(); self.dz_spin.setRange(-1000, 1000); self.dz_spin.setSingleStep(0.1)
-        self.rx_spin = QDoubleSpinBox(); self.rx_spin.setRange(-360, 360); self.rx_spin.setWrapping(True)
-        self.ry_spin = QDoubleSpinBox(); self.ry_spin.setRange(-360, 360); self.ry_spin.setWrapping(True)
-        self.rz_spin = QDoubleSpinBox(); self.rz_spin.setRange(-360, 360); self.rz_spin.setWrapping(True)
+        self.yaw_spin = QDoubleSpinBox(); self.yaw_spin.setRange(-360, 360); self.yaw_spin.setWrapping(True)
+        self.pitch_spin = QDoubleSpinBox(); self.pitch_spin.setRange(-89, 89); self.pitch_spin.setWrapping(False)
         
-        self.pose_controls = [self.dx_spin, self.dy_spin, self.dz_spin, self.rx_spin, self.ry_spin, self.rz_spin]
+        self.pose_controls = [self.dx_spin, self.dy_spin, self.dz_spin, self.yaw_spin, self.pitch_spin]
 
         layout.addWidget(QLabel("Pos (x,y,z):"), 0, 0)
         layout.addWidget(self.dx_spin, 0, 1); layout.addWidget(self.dy_spin, 0, 2); layout.addWidget(self.dz_spin, 0, 3)
-        layout.addWidget(QLabel("Rot (x,y,z):"), 1, 0)
-        layout.addWidget(self.rx_spin, 1, 1); layout.addWidget(self.ry_spin, 1, 2); layout.addWidget(self.rz_spin, 1, 3)
-
-        self.rot_order_combo = QComboBox()
-        self.rot_order_combo.addItems(['xyz', 'xzy', 'yxz', 'yzx', 'zxy', 'zyx'])
-        layout.addWidget(QLabel("Rotation Order:"), 2, 0)
-        layout.addWidget(self.rot_order_combo, 2, 1, 1, 3)
+        layout.addWidget(QLabel("Rot (Yaw, Pitch):"), 1, 0)
+        layout.addWidget(self.yaw_spin, 1, 1); layout.addWidget(self.pitch_spin, 1, 2)
 
         self.track_pose_checkbox = QCheckBox("Track Current Pose")
         self.track_pose_checkbox.setChecked(True)
@@ -101,7 +95,6 @@ class Render_Example_Window(Main_Window):
 
         for control in self.pose_controls:
             control.valueChanged.connect(self._update_camera_from_ui)
-        self.rot_order_combo.currentTextChanged.connect(self._update_camera_from_ui)
         
         return group
 
@@ -133,54 +126,42 @@ class Render_Example_Window(Main_Window):
         if self.track_pose_checkbox.isChecked():
             return
 
-        pos = np.array([c.value() for c in self.pose_controls[:3]])
-        rot_degs = [c.value() for c in self.pose_controls[3:]]
-        order = self.rot_order_combo.currentText()
-
-        try:
-            c2w = np.eye(4)
-            c2w[:3, :3] = R.from_euler(order, rot_degs, degrees=True).as_matrix()
-            c2w[:3, 3] = pos
-            view_matrix = np.linalg.inv(c2w)
-            self.viewer.camera.Set_view_mat(view_matrix.astype(np.float32))
-            self.viewer.update()
-        except Exception as e:
-            print(f"Error applying camera pose: {e}")
+        self.viewer.camera.position[0] = self.dx_spin.value()
+        self.viewer.camera.position[1] = self.dy_spin.value()
+        self.viewer.camera.position[2] = self.dz_spin.value()
+        self.viewer.camera.yaw = self.yaw_spin.value()
+        self.viewer.camera.pitch = self.pitch_spin.value()
+        self.viewer.camera._View_Cam__Update_view_mat() # Private method call, but necessary here
+        self.viewer.update()
 
     def _update_ui_from_camera(self):
         if not self.track_pose_checkbox.isChecked():
             return
 
-        c2w_mat = self.viewer.camera.c2w_mat
-        pos = c2w_mat[:3, 3]
-        order = self.rot_order_combo.currentText()
-        rot_degs = R.from_matrix(c2w_mat[:3, :3]).as_euler(order, degrees=True)
+        pos = self.viewer.camera.position
+        yaw = self.viewer.camera.yaw
+        pitch = self.viewer.camera.pitch
         
-        data = np.concatenate([pos, rot_degs])
-        for control, value in zip(self.pose_controls, data):
+        controls = [self.dx_spin, self.dy_spin, self.dz_spin, self.yaw_spin, self.pitch_spin]
+        values = [pos[0], pos[1], pos[2], yaw, pitch]
+
+        for control, value in zip(controls, values):
             control.blockSignals(True)
             control.setValue(value)
             control.blockSignals(False)
 
     def _move_relative(self, direction: str):
-        cam = self.viewer.camera
         step = self.move_step_spin.value()
-        if direction == 'forward':   cam.Zoom(1, sensitivity=step)
-        elif direction == 'backward':cam.Zoom(-1, sensitivity=step)
-        elif direction == 'left':    cam.Pan(10, 0, sensitivity=step*0.05)
-        elif direction == 'right':   cam.Pan(-10, 0, sensitivity=step*0.05)
-        elif direction == 'up':      cam.Pan(0, 10, sensitivity=step*0.05)
-        elif direction == 'down':    cam.Pan(0, -10, sensitivity=step*0.05)
+        if direction == 'forward':   self.viewer.camera.Move(step, 0, 0)
+        elif direction == 'backward':self.viewer.camera.Move(-step, 0, 0)
+        elif direction == 'left':    self.viewer.camera.Move(0, -step, 0)
+        elif direction == 'right':   self.viewer.camera.Move(0, step, 0)
+        elif direction == 'up':      self.viewer.camera.Move(0, 0, step)
+        elif direction == 'down':    self.viewer.camera.Move(0, 0, -step)
         self.viewer.update()
-        # No need to call _update_ui_from_camera here, it's handled by the signal
 
     def on_viewer_ready(self):
         print("Viewer is initialized and ready.")
-        # Set initial camera pose from default UI values
-        self.track_pose_checkbox.setChecked(False)
-        self.dz_spin.setValue(5.0)
-        self._update_camera_from_ui()
-        self.track_pose_checkbox.setChecked(True)
         self._update_ui_from_camera()
 
     def add_axis(self):

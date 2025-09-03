@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from vision_toolbox.utils.vision_types import TF_M
 from vision_toolbox.asset import (
@@ -63,60 +64,47 @@ class Scene:
 
 @dataclass
 class View_Cam:
-    """마우스 입력으로 조작 가능한 아크볼 스타일 카메라 (Dataclass 버전)"""
-    # --- 초기화 시 설정되는 인자 ---
+    """마우스 입력으로 조작 가능한 FPS 스타일 카메라"""
     width: int
     height: int
-    target: np.ndarray = field(default_factory=lambda: np.array([0., 0., 0.]))
+    position: np.ndarray = field(default_factory=lambda: np.array([0., 0., 5.]))
+    yaw: float = -90.0  # Degrees
+    pitch: float = 0.0  # Degrees
 
-    # --- 기본값을 가지는 카메라 상태 변수 ---
-    up: np.ndarray = field(default_factory=lambda: np.array([0., 1., 0.]))
-    radius: float = 5.0  # Zoom
-    theta: float = np.radians(45.0)  # 수평 회전 (Azimuth)
-    phi: float = np.radians(60.0)    # 수직 회전 (Elevation)
-
-    # [개선] fov는 수평(x) 화각을 의미하도록 명확화
     fov_x_rad: float = np.radians(90.0)
     near_plane: float = 0.1
     far_plane: float = 1000.0
 
-    # --- __post_init__ 에서 계산되는 필드 ---
-    position: np.ndarray = field(init=False)
     view_mat: np.ndarray = field(init=False)
     proj_matrix: np.ndarray = field(init=False)
     c2w_mat: np.ndarray = field(init=False)
     fov_y_rad: float = field(init=False)
 
     def __post_init__(self):
-        """Dataclass 초기화 후 실행되는 메서드"""
         self.update_perspective_from_fov()
         self.__Update_view_mat()
         self.Set_projection(self.width, self.height)
 
     def __Update_view_mat(self):
-        """구면 좌표계로부터 카메라 위치를 계산하고 행렬들을 갱신"""
-        _trg, _r, _p, _th = self.target, self.radius, self.phi, self.theta
-        _eye_x = _trg[0] + _r * np.sin(_p) * np.cos(_th)
-        _eye_y = _trg[1] + _r * np.cos(_p)
-        _eye_z = _trg[2] + _r * np.sin(_p) * np.sin(_th)
-        eye = np.array([_eye_x, _eye_y, _eye_z])
+        """Yaw, Pitch로부터 카메라의 방향 벡터와 행렬들을 갱신"""
+        front = np.zeros(3, dtype=np.float32)
+        front[0] = np.cos(np.radians(self.yaw)) * np.cos(np.radians(self.pitch))
+        front[1] = np.sin(np.radians(self.pitch))
+        front[2] = np.sin(np.radians(self.yaw)) * np.cos(np.radians(self.pitch))
+        front = front / np.linalg.norm(front)
 
-        self.position, self.c2w_mat, self.view_mat = self.__Look_at(
-            eye, _trg, self.up
-        )
+        right = np.cross(front, np.array([0., 1., 0.]))
+        right = right / np.linalg.norm(right)
+        
+        up = np.cross(right, front)
+        up = up / np.linalg.norm(up)
 
-    def __Look_at(self, eye, target, up):
-        _z = eye - target
-        if np.linalg.norm(_z) > 1e-6:
-            _z /= np.linalg.norm(_z)
-        _x = np.cross(up, _z)
-        if np.linalg.norm(_x) > 1e-6:
-            _x /= np.linalg.norm(_x)
-        _y = np.cross(_z, _x)
-
-        _c2w = np.identity(4, dtype=np.float32)
-        _c2w[:3, 0], _c2w[:3, 1], _c2w[:3, 2], _c2w[:3, 3] = _x, _y, _z, eye
-        return eye, _c2w, np.linalg.inv(_c2w)
+        self.c2w_mat = np.identity(4, dtype=np.float32)
+        self.c2w_mat[:3, 0] = right
+        self.c2w_mat[:3, 1] = up
+        self.c2w_mat[:3, 2] = -front # OpenGL 카메라는 -Z를 바라봄
+        self.c2w_mat[:3, 3] = self.position
+        self.view_mat = np.linalg.inv(self.c2w_mat)
 
     def __Perspective(self, fov_y, aspect, z_near, z_far) -> np.ndarray:
         _mat = np.zeros((4, 4), dtype=np.float32)
@@ -128,56 +116,38 @@ class View_Cam:
         _mat[3, 2] = -1.0
         return _mat.T
 
-    # --- Public Methods ---
     def update_perspective_from_fov(self):
-        """수평 FoV와 화면 비율을 기반으로 수직 FoV를 계산합니다."""
         _ratio = self.width / self.height if self.height > 0 else 1.0
         _tan_fov_x_half = np.tan(self.fov_x_rad / 2.0)
         _tan_fov_y_half = _tan_fov_x_half / _ratio
         self.fov_y_rad = 2 * np.arctan(_tan_fov_y_half)
 
-    def Tilt(self, dx: float, dy: float, sensitivity: float = 0.01):
-        self.theta += dx * sensitivity
-        self.phi = np.clip(self.phi + dy * sensitivity, 0.01, np.pi - 0.01)
+    def Rotate(self, dx: float, dy: float, sensitivity: float = 0.1):
+        self.yaw += dx * sensitivity
+        self.pitch -= dy * sensitivity
+        self.pitch = np.clip(self.pitch, -89.0, 89.0)
         self.__Update_view_mat()
 
-    def Pan(self, dx: float, dy: float, sensitivity: float = 0.01):
-        """[복구 및 최적화] 카메라의 로컬 축을 기준으로 target 위치를 평행 이동"""
-        _r = self.c2w_mat[:3, 0]
-        _u = self.c2w_mat[:3, 1]
-
-        self.target -= _r * dx * sensitivity
-        self.target += _u * dy * sensitivity
-        self.__Update_view_mat()
-
-    def Zoom(self, delta: float, sensitivity: float = 0.1):
-        self.radius -= delta * sensitivity
-        self.radius = max(self.radius, 0.1)
+    def Move(self, forward_delta: float, right_delta: float, up_delta: float, sensitivity: float = 0.1):
+        front = -self.c2w_mat[:3, 2]
+        right = self.c2w_mat[:3, 0]
+        up = self.c2w_mat[:3, 1]
+        
+        self.position += front * forward_delta * sensitivity
+        self.position += right * right_delta * sensitivity
+        self.position += up * up_delta * sensitivity
         self.__Update_view_mat()
 
     def Set_view_mat(self, view_mat: TF_M):
-        """
-        뷰 행렬을 설정하고, 이로부터 아크볼 파라미터를 역산하여 동기화합니다.
-        """
         self.view_mat = view_mat
         self.c2w_mat = np.linalg.inv(view_mat)
         self.position = self.c2w_mat[:3, 3]
-
-        # 뷰 행렬로부터 아크볼 파라미터(theta, phi, radius) 역산
-        # target은 현재 값을 유지한다고 가정
-        cam_to_target_vec = self.position - self.target
-        self.radius = np.linalg.norm(cam_to_target_vec)
         
-        if self.radius > 1e-6:
-            # 정규화된 벡터
-            norm_vec = cam_to_target_vec / self.radius
-            # phi (수직각) 계산
-            self.phi = np.arccos(np.clip(norm_vec[1], -1.0, 1.0))
-            # theta (수평각) 계산
-            self.theta = np.arctan2(norm_vec[2], norm_vec[0])
-        
-        # 극점(gimbal lock) 근처의 불안정성 방지
-        self.phi = np.clip(self.phi, 0.01, np.pi - 0.01)
+        # View Matrix로부터 Yaw, Pitch 역산
+        front = -self.c2w_mat[:3, 2]
+        self.pitch = np.degrees(np.arcsin(front[1]))
+        self.yaw = np.degrees(np.arctan2(front[2], front[0]))
+        self.pitch = np.clip(self.pitch, -89.0, 89.0)
 
     def Set_projection(self, width: int, height: int):
         self.width, self.height = width, height
@@ -191,7 +161,6 @@ class View_Cam:
         )
 
     def Get_hfovxy_focal(self) -> np.ndarray:
-        """수평/수직 FoV를 바탕으로 픽셀 단위 초점 거리 (fx, fy)를 계산"""
         return np.array([
             (self.width / 2.0) / np.tan(self.fov_x_rad / 2.0),
             (self.height / 2.0) / np.tan(self.fov_y_rad / 2.0),
@@ -221,13 +190,16 @@ def Create_dummy_3DGS(
     _rot = np.zeros((num_points, 4), dtype=np.float32)
     _rot[:, 3] = 1.0
 
+    sh_features = np.zeros((num_points, 48), dtype=np.float32)
+    sh_features[:, :3] = _colors
+
     return Gaussian_3D(
         relative_path=file_name,
         points=_pts,
         opacities=_a,
         scales=_s,
         rotations=_rot,
-        colors=_colors
+        colors=sh_features
     )
 
 
@@ -250,19 +222,15 @@ def Create_axis_3DGS(file_name="test_axis_3DGS.ply") -> Gaussian_3D:
 
     _a = np.array([[1], [1], [1], [1]], dtype=np.float32)
 
-    # 기본 RGB 색상 정의 (SH 0차 계수로 사용될 값)
+    # 기본 RGB 색상 정의
     _c_rgb = np.array([
         [1, 0, 1], [1, 0, 0], [0, 1, 0], [0, 0, 1]
     ], dtype=np.float32)
 
-    # 셰이더 활성화 함수의 역연산을 적용하여 SH 0차 계수(DC) 생성
-    C0 = 0.28209479177387814
-    sh_dc = (_c_rgb - 0.5) / C0
-
     # colors 필드(N, 48) 형태에 맞게 나머지 SH 계수(AC)를 0으로 채움
     _num_pts = _xyz.shape[0]
-    _sh_padding = np.zeros((_num_pts, 45), dtype=np.float32)
-    _sh_features = np.concatenate([sh_dc, _sh_padding], axis=1)
+    _sh_features = np.zeros((_num_pts, 48), dtype=np.float32)
+    _sh_features[:, :3] = _c_rgb
 
     return Gaussian_3D(
         relative_path=file_name,

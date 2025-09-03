@@ -86,15 +86,18 @@ class ViewerWidget(QOpenGLWidget):
         buttons = event.buttons()
         
         if buttons & Qt.MouseButton.LeftButton:
-            self.camera.Tilt(dx, dy)
+            self.camera.Rotate(dx, dy)
         elif buttons & Qt.MouseButton.RightButton:
-            self.camera.Pan(dx, dy)
+            # Panning: move right and up
+            self.camera.Move(0, dx, -dy, sensitivity=0.01)
 
         self.last_mouse_pos = event.pos()
         self.update()
         self.camera_moved.emit()
 
     def wheelEvent(self, event):
-        self.camera.Zoom(event.angleDelta().y())
+        # Zoom: move forward/backward
+        scroll_delta = event.angleDelta().y() / 120.0
+        self.camera.Move(scroll_delta, 0, 0, sensitivity=0.2)
         self.update()
         self.camera_moved.emit()
