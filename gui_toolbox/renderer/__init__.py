@@ -8,14 +8,13 @@ OpenGL 렌더러와 관련 유틸리티, 데이터 구조를 제공합니다.
 
 # --- Public API 노출 ---
 
+from .view_camera import View_Cam
+
 # 핵심 렌더러 클래스
 from .render import OpenGL_Renderer
 
 # 렌더링 데이터 및 카메라/장면 관리
-from .scene_manager import (
-    View_Cam, Scene_Manager,
-    Create_dummy_scene
-)
+from .scene_manager import Scene_Manager
 
 # 렌더링에 필요한 데이터 구조 및 Enum 타입
 from .definitions import (
