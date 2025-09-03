@@ -10,7 +10,7 @@ from OpenGL.GL import (
     glUseProgram,
     glClearColor, glClear,
 )
-from OpenGL.GL.shaders import ShaderProgram, glDeleteProgram
+from OpenGL.GL.shaders import ShaderProgram
 
 from .definitions import (
     Resource, Render_Object, Render_Opt, Clear_Opt,
@@ -219,24 +219,3 @@ class OpenGL_Renderer:
                 self.__Render_each_obj(_r_block[_n], _setters)
 
         glBindVertexArray(0)
-
-    def cleanup(self):
-        """Deletes all OpenGL resources managed by the renderer."""
-        # Delete all render objects
-        self.Del_geometry(list(self.render_block.keys()))
-
-        # Delete quad mesh
-        if self.quad_vao:
-            glDeleteVertexArrays(1, [self.quad_vao])
-        if self.quad_vbo:
-            glDeleteBuffers(1, [self.quad_vbo])
-        if self.quad_ebo:
-            glDeleteBuffers(1, [self.quad_ebo])
-
-        # Delete shader programs
-        for prog in self.shader_progs.values():
-            glDeleteProgram(prog)
-
-        self.render_block.clear()
-        self.shader_obj_map = {t: [] for t in Shader_Type}
-        self.shader_progs.clear()

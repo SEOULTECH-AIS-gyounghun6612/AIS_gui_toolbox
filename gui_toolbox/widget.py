@@ -75,13 +75,6 @@ class ViewerWidget(QOpenGLWidget):
             return
         self.renderer.Render(self.camera)
 
-    def cleanup(self):
-        """Cleans up OpenGL resources. Must be called before the widget is destroyed."""
-        if self._gl_initialized:
-            self.makeCurrent()
-            self.renderer.cleanup()
-            self.doneCurrent()
-
     # --- 이벤트 핸들러 ---
     def mousePressEvent(self, event):
         self.last_mouse_pos = event.pos()

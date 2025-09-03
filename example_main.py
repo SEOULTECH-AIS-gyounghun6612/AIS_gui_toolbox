@@ -186,7 +186,6 @@ class Render_Example_Window(Main_Window):
     def Stop(self):
         """애플리케이션 종료 시 호출됩니다."""
         print("Render_Example_Window is stopping.")
-        self.viewer.cleanup()
 
 
 def main():
