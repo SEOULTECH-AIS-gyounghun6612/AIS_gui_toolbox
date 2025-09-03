@@ -15,7 +15,7 @@ from OpenGL.GL import (
     GL_STATIC_DRAW, GL_DYNAMIC_DRAW,
     GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER, GL_SHADER_STORAGE_BUFFER,
     GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_COMPUTE_SHADER,
-    glGetUniformLocation, glUniformMatrix4fv, glUniform3fv,
+    glGetUniformLocation, glUniformMatrix4fv, glUniform3fv, glUniform2fv,
     glUniform1ui, glUniform1i, glUniform1f, GL_FALSE,
     GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_STENCIL_BUFFER_BIT,
 )
@@ -176,6 +176,9 @@ def Create_uniform_setter(shader_prog):
     def Set_vec3(name, value):
         glUniform3fv(get_loc(name), 1, value)
 
+    def Set_vec2(name, value):
+        glUniform2fv(get_loc(name), 1, value)
+
     def Set_uint(name, value):
         glUniform1ui(get_loc(name), value)
 
@@ -191,6 +194,7 @@ def Create_uniform_setter(shader_prog):
     return {
         "mat4": Set_mat4,
         "vec3": Set_vec3,
+        "vec2": Set_vec2,
         "uint": Set_uint,
         "int": Set_int,
         "float": Set_float,
