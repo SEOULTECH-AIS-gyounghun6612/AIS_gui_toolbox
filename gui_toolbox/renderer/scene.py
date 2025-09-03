@@ -78,7 +78,7 @@ class View_Cam:
     # [개선] fov는 수평(x) 화각을 의미하도록 명확화
     fov_x_rad: float = np.radians(90.0)
     near_plane: float = 0.1
-    far_plane: float = 100.0
+    far_plane: float = 1000.0
 
     # --- __post_init__ 에서 계산되는 필드 ---
     position: np.ndarray = field(init=False)
@@ -89,11 +89,7 @@ class View_Cam:
 
     def __post_init__(self):
         """Dataclass 초기화 후 실행되는 메서드"""
-        _ratio = self.width / self.height if self.height > 0 else 1.0
-        _tan_fov_x_half = np.tan(self.fov_x_rad / 2.0)
-        _tan_fov_y_half = _tan_fov_x_half / _ratio
-        self.fov_y_rad = 2 * np.arctan(_tan_fov_y_half)
-
+        self.update_perspective_from_fov()
         self.__Update_view_mat()
         self.Set_projection(self.width, self.height)
 
@@ -133,6 +129,13 @@ class View_Cam:
         return _mat.T
 
     # --- Public Methods ---
+    def update_perspective_from_fov(self):
+        """수평 FoV와 화면 비율을 기반으로 수직 FoV를 계산합니다."""
+        _ratio = self.width / self.height if self.height > 0 else 1.0
+        _tan_fov_x_half = np.tan(self.fov_x_rad / 2.0)
+        _tan_fov_y_half = _tan_fov_x_half / _ratio
+        self.fov_y_rad = 2 * np.arctan(_tan_fov_y_half)
+
     def Tilt(self, dx: float, dy: float, sensitivity: float = 0.01):
         self.theta += dx * sensitivity
         self.phi = np.clip(self.phi + dy * sensitivity, 0.01, np.pi - 0.01)
@@ -153,16 +156,35 @@ class View_Cam:
         self.__Update_view_mat()
 
     def Set_view_mat(self, view_mat: TF_M):
+        """
+        뷰 행렬을 설정하고, 이로부터 아크볼 파라미터를 역산하여 동기화합니다.
+        """
         self.view_mat = view_mat
-        _c2w = np.linalg.inv(view_mat)
-        self.c2w_mat = _c2w
-        self.position = _c2w[:3, 3]
+        self.c2w_mat = np.linalg.inv(view_mat)
+        self.position = self.c2w_mat[:3, 3]
+
+        # 뷰 행렬로부터 아크볼 파라미터(theta, phi, radius) 역산
+        # target은 현재 값을 유지한다고 가정
+        cam_to_target_vec = self.position - self.target
+        self.radius = np.linalg.norm(cam_to_target_vec)
+        
+        if self.radius > 1e-6:
+            # 정규화된 벡터
+            norm_vec = cam_to_target_vec / self.radius
+            # phi (수직각) 계산
+            self.phi = np.arccos(np.clip(norm_vec[1], -1.0, 1.0))
+            # theta (수평각) 계산
+            self.theta = np.arctan2(norm_vec[2], norm_vec[0])
+        
+        # 극점(gimbal lock) 근처의 불안정성 방지
+        self.phi = np.clip(self.phi, 0.01, np.pi - 0.01)
 
     def Set_projection(self, width: int, height: int):
         self.width, self.height = width, height
         if self.height == 0:
             return
 
+        self.update_perspective_from_fov()
         _ratio = self.width / self.height
         self.proj_matrix = self.__Perspective(
             self.fov_y_rad, _ratio, self.near_plane, self.far_plane
