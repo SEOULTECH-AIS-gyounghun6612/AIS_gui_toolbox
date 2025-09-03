@@ -185,8 +185,7 @@ class OpenGL_Renderer:
         self.handlers[obj.shader_type].Draw(obj, self.quad_idx_count)
 
     def __Sort_and_reorder_gaussians(self, obj: Render_Object, camera: View_Cam):
-        _total_dim = Get_3dgs_total_dim(self.sh_dim)
-        self.sorter.Sort(obj, camera.view_mat, _total_dim)
+        self.sorter.Sort(obj, camera.view_mat)
 
     def Render(self, camera: View_Cam):
         self.__Background_init()
@@ -208,8 +207,10 @@ class OpenGL_Renderer:
             _setters["mat4"]("projection", camera.proj_matrix)
 
             if _s_type is Shader_Type.GAUSSIAN_SPLAT:
+                focal_viewport = camera.Get_hfovxy_focal()
+                _setters["vec2"]("focal", focal_viewport[:2])
+                _setters["vec2"]("viewport", np.array([camera.width, camera.height]))
                 _setters["vec3"]("cam_pos", camera.position)
-                _setters["vec3"]("hfovxy_focal", camera.Get_hfovxy_focal())
                 _setters["int"]("sh_dim", self.sh_dim)
                 _setters["int"]("render_mod", self.gau_splat_mode)
                 _setters["float"]("scale_modifier", 1.0)

@@ -23,6 +23,8 @@ from OpenGL.GL.shaders import ShaderProgram
 from open3d import geometry
 from vision_toolbox.asset import Gaussian_3D
 
+from vision_toolbox.utils.geometry import Convert
+
 from .definitions import (
     Resource, Render_Object,
     Buf_Name, Prim, Shader_Type, Draw_Opt, Obj_Type, Sorter_Type
@@ -43,7 +45,7 @@ class Sorter:
     class Base(ABC):
         @abstractmethod
         def Sort(
-            self, obj: Render_Object, view_mat: np.ndarray, total_dim: int
+            self, obj: Render_Object, view_mat: np.ndarray
         ):
             """GPU 데이터를 깊이 순으로 정렬 및 재배열합니다."""
             pass
@@ -65,7 +67,7 @@ class Sorter:
             self.setters = setters
 
         def Sort(
-            self, obj: Render_Object, view_mat: np.ndarray, total_dim: int
+            self, obj: Render_Object, view_mat: np.ndarray
         ):
             """GPU Bitonic Sort로 깊이 정렬 수행."""
             _n_gs = obj.inst_count
@@ -80,7 +82,6 @@ class Sorter:
             glUseProgram(_s_depth)
             _d_setters["mat4"]("view", view_mat)
             _d_setters["uint"]("num_elements", _n_gs)
-            _d_setters["int"]("total_dim", total_dim)
             glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["gaus"])
             glBindBufferBase(Buf_Name.SSBO, 1, obj.buffers["sort"])
             glDispatchCompute(_num_groups, 1, 1)
@@ -104,7 +105,6 @@ class Sorter:
             _r_setters = self.setters["reorder_data"]
             glUseProgram(_s_reorder)
             _r_setters["uint"]("num_elements", _n_gs)
-            _r_setters["int"]("total_dim", total_dim)
             glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["sort"])
             glBindBufferBase(Buf_Name.SSBO, 1, obj.buffers["gaus"])
             glBindBufferBase(Buf_Name.SSBO, 2, obj.buffers["reordered"])
@@ -120,7 +120,7 @@ class Sorter:
             self.setters = setters
 
         def _Reorder_data_on_gpu(
-            self, obj: Render_Object, indices: np.ndarray, total_dim: int
+            self, obj: Render_Object, indices: np.ndarray
         ):
             """계산된 인덱스를 사용하여 GPU에서 데이터를 재배열합니다."""
             glBindBuffer(Buf_Name.SSBO, obj.buffers["indices"])
@@ -129,7 +129,6 @@ class Sorter:
 
             glUseProgram(self.sh_reorder)
             self.setters["uint"]("num_elements", obj.inst_count)
-            self.setters["int"]("total_dim", total_dim)
 
             glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["indices"])
             glBindBufferBase(Buf_Name.SSBO, 1, obj.buffers["gaus"])
@@ -150,7 +149,7 @@ class Sorter:
             self.xyz_buffer = None
 
         def Sort(
-            self, obj: Render_Object, view_mat: np.ndarray, total_dim: int
+            self, obj: Render_Object, view_mat: np.ndarray
         ):
             """PyTorch로 인덱스를 계산하고 GPU에서 데이터를 재배열합니다."""
             _xyz = obj.cpu_data["xyz"]
@@ -164,18 +163,18 @@ class Sorter:
             _xyz_view = self.xyz_buffer @ view_mat_torch[:3, :3].T + view_mat_torch[:3, 3]
             indices = torch.argsort(_xyz_view[:, 2])
             indices_np = indices.cpu().numpy().astype(np.uint32)
-            self._Reorder_data_on_gpu(obj, indices_np, total_dim)
+            self._Reorder_data_on_gpu(obj, indices_np)
 
     class CPU(_Sorter_Helper):
         """NumPy(CPU)를 사용하여 가우시안을 정렬하는 클래스."""
         def Sort(
-            self, obj: Render_Object, view_mat: np.ndarray, total_dim: int
+            self, obj: Render_Object, view_mat: np.ndarray
         ):
             """NumPy로 인덱스를 계산하고 GPU에서 데이터를 재배열합니다."""
             _xyz = obj.cpu_data["xyz"]
             _xyz_view = _xyz @ view_mat[:3, :3].T + view_mat[:3, 3]
             indices = np.argsort(_xyz_view[:, 2]).astype(np.uint32)
-            self._Reorder_data_on_gpu(obj, indices, total_dim)
+            self._Reorder_data_on_gpu(obj, indices)
 
 
 class Handler:
@@ -286,14 +285,35 @@ class Handler:
             _data: Gaussian_3D = res.data
             _num_3dgs = len(_data.points)
 
-            _f_data = _data.Ready_to_display_flat()
+            # Get display-ready data
+            _attr = _data._Gaussian_3D__Ready_to_display_dict()
+            points = _attr['points']
+            rotations = _attr['rotations']
+            scales = _attr['scales']
+            opacities = _attr['opacities']
+            sh_features = _attr['colors']
+
+            # Compute covariance
+            covA, covB = Convert.Compute_3D_covariance(scales, rotations)
+
+            # Create padded buffer for std430 layout
+            buffer = np.zeros((_num_3dgs, 76), dtype=np.float32)
+            buffer[:, 0:3] = points
+            buffer[:, 3] = opacities.flatten()
+            buffer[:, 4:7] = covA
+            buffer[:, 8:11] = covB
+            colors_reshaped = sh_features.reshape(_num_3dgs, 16, 3)
+            sh_start_index = 12
+            for i in range(16):
+                buffer[:, sh_start_index + i * 4: sh_start_index + i * 4 + 3] = colors_reshaped[:, i, :]
+
             _ssbo_gaus = glGenBuffers(1)
             glBindBuffer(Buf_Name.SSBO, _ssbo_gaus)
-            glBufferData(Buf_Name.SSBO, _f_data.nbytes, _f_data, res.draw_opt)
+            glBufferData(Buf_Name.SSBO, buffer.nbytes, buffer, res.draw_opt)
 
             _ssbo_reordered = glGenBuffers(1)
             glBindBuffer(Buf_Name.SSBO, _ssbo_reordered)
-            glBufferData(Buf_Name.SSBO, _f_data.nbytes, None, Draw_Opt.DYNAMIC)
+            glBufferData(Buf_Name.SSBO, buffer.nbytes, None, Draw_Opt.DYNAMIC)
 
             buffers = {"gaus": _ssbo_gaus, "reordered": _ssbo_reordered}
             cpu_data = None

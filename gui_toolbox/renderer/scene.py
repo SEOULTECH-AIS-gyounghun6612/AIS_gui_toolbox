@@ -303,11 +303,14 @@ def Create_random_3DGS(
     _rot = np.zeros((num_points, 4), dtype=np.float32)
     _rot[:, 3] = 1.0
 
+    sh_features = np.zeros((num_points, 48), dtype=np.float32)
+    sh_features[:, :3] = _colors
+
     return Gaussian_3D(
         relative_path=file_name,
         points=_pts,
         opacities=_a,
         scales=_s,
         rotations=_rot,
-        colors=_colors
+        colors=sh_features
     )
