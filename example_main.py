@@ -206,6 +206,30 @@ class Render_Example_Window(Main_Window):
             )
         })
 
+    def frame_scene(self):
+        """모든 에셋을 포함하는 바운딩 박스를 계산하고 카메라 뷰를 조정합니다."""
+        all_points = []
+        for res in self.viewer.asset_block.values():
+            if hasattr(res.data, 'points'):
+                all_points.append(res.data.points)
+        
+        if not all_points:
+            print("No frameable assets in the scene.")
+            return
+
+        combined_points = np.vstack(all_points)
+        if combined_points.size == 0:
+            print("No points to frame.")
+            return
+
+        min_corner = np.min(combined_points, axis=0)
+        max_corner = np.max(combined_points, axis=0)
+        aabb = np.array([min_corner, max_corner])
+
+        self.viewer.camera.Frame(aabb)
+        self.viewer.update()
+        self.viewer.camera_moved.emit()
+
     def Run(self):
         print("Render_Example_Window is running.")
 
