@@ -135,7 +135,7 @@ void main()
     float g_opacity = g_data[start + OPACITY_IDX];
     mat3 cov3d = computeCov3D(g_scale * scale_modifier, g_rot);
     vec2 wh = 2 * hfovxy_focal.xy * hfovxy_focal.z;
-    vec3 cov2d = computeCov2D(g_pos_view, hfovxy_focal.z, hfovxy_focal.z, hfovxy_focal.x, hfovxy_focal.y, cov3d, view);
+    vec3 cov2d = computeCov2D(g_pos_view, hfovxy_focal.x, hfovxy_focal.y, hfovxy_focal.x, hfovxy_focal.y, cov3d, view);
 
     float det = (cov2d.x * cov2d.z - cov2d.y * cov2d.y);
     if (det == 0.0f)
