@@ -6,9 +6,14 @@ gui_toolbox 렌더러 사용법을 보여주는 메인 예제 스크립트.
 """
 import sys
 import numpy as np
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QLabel, QGroupBox, QDockWidget, QPushButton, QDoubleSpinBox, QSizePolicy
+)
 
 from gui_toolbox.widget import ViewerWidget
+from gui_toolbox.renderer import View_Cam
 from vision_toolbox.asset import Scene, Gaussian_3DGS, Point_Cloud
 
 
@@ -74,15 +79,163 @@ def create_random_points_asset(num_points=1000) -> Point_Cloud:
     )
 
 
+class ControlPanelWidget(QWidget):
+    """카메라와 에셋 정보를 보여주고 제어하는 통합 패널 위젯."""
+    def __init__(self, viewer_widget: ViewerWidget, parent=None):
+        super().__init__(parent)
+        self.viewer = viewer_widget
+        self.view_cam = self.viewer.view_cam
+        self._updating_ui = False
+
+        main_layout = QVBoxLayout()
+        self.setLayout(main_layout)
+
+        cam_group = self._create_camera_control_group()
+        main_layout.addWidget(cam_group)
+
+        asset_group = self._create_asset_info_group()
+        main_layout.addWidget(asset_group)
+
+        main_layout.addStretch()
+
+        self.viewer.camera_moved.connect(self.update_camera_ui)
+
+    def _create_camera_control_group(self) -> QGroupBox:
+        group_box = QGroupBox("Camera Control")
+        layout = QVBoxLayout()
+
+        # Position
+        pos_layout = QGridLayout()
+        self.pos_spins = []
+        for i, label in enumerate(["X", "Y", "Z"]):
+            pos_layout.addWidget(QLabel(label), 0, i*2)
+            spin = QDoubleSpinBox()
+            spin.setRange(-1000, 1000)
+            spin.setDecimals(2)
+            spin.setSingleStep(0.1)
+            spin.valueChanged.connect(self.on_camera_transform_changed)
+            pos_layout.addWidget(spin, 0, i*2 + 1)
+            self.pos_spins.append(spin)
+        
+        # Rotation
+        rot_layout = QHBoxLayout()
+        self.rot_spins = []
+        for i, label in enumerate(["Yaw", "Pitch"]):
+            rot_layout.addWidget(QLabel(label))
+            spin = QDoubleSpinBox()
+            spin.setRange(-360, 360)
+            spin.setDecimals(2)
+            spin.setSingleStep(1)
+            spin.valueChanged.connect(self.on_camera_transform_changed)
+            rot_layout.addWidget(spin)
+            self.rot_spins.append(spin)
+
+        # Movement Buttons
+        move_layout = QGridLayout()
+        buttons = {
+            "Forward": (0, 1, lambda: self.on_move_button_clicked(fwd=1)),
+            "Backward": (2, 1, lambda: self.on_move_button_clicked(fwd=-1)),
+            "Left": (1, 0, lambda: self.on_move_button_clicked(right=-1)),
+            "Right": (1, 2, lambda: self.on_move_button_clicked(right=1)),
+            "Up": (0, 2, lambda: self.on_move_button_clicked(up=1)),
+            "Down": (2, 2, lambda: self.on_move_button_clicked(up=-1)),
+        }
+        for name, (r, c, handler) in buttons.items():
+            btn = QPushButton(name)
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            btn.clicked.connect(handler)
+            move_layout.addWidget(btn, r, c)
+
+        layout.addLayout(pos_layout)
+        layout.addLayout(rot_layout)
+        layout.addLayout(move_layout)
+        group_box.setLayout(layout)
+        return group_box
+
+    def _create_asset_info_group(self) -> QGroupBox:
+        group_box = QGroupBox("Asset Info")
+        layout = QVBoxLayout()
+        self.asset_type_label = QLabel("Type: N/A")
+        self.asset_points_label = QLabel("Points: N/A")
+        layout.addWidget(self.asset_type_label)
+        layout.addWidget(self.asset_points_label)
+        group_box.setLayout(layout)
+        return group_box
+
+    def update_camera_ui(self):
+        if self.view_cam:
+            self._updating_ui = True
+            pos = self.view_cam.cam_data.pose[:3, 3]
+            for i in range(3):
+                self.pos_spins[i].setValue(pos[i])
+            
+            self.rot_spins[0].setValue(self.view_cam.yaw)
+            self.rot_spins[1].setValue(self.view_cam.pitch)
+            self._updating_ui = False
+
+    def on_camera_transform_changed(self):
+        if self.view_cam and not self._updating_ui:
+            # Update position
+            new_pos = np.array([s.value() for s in self.pos_spins], dtype=np.float32)
+            self.view_cam.cam_data.pose[:3, 3] = new_pos
+            
+            # Update rotation (This is more complex, direct yaw/pitch manipulation is safer)
+            # For now, we let mouse control rotation primarily. Re-evaluating direct input.
+            # Let's just update position for now. Direct rotation update is tricky.
+            
+            self.view_cam._Update_derived_props_from_pose()
+            self.viewer.update()
+            self.update_camera_ui()
+
+    def on_move_button_clicked(self, fwd=0, right=0, up=0):
+        if self.view_cam:
+            self.view_cam.Move(fwd, right, up, sensitivity=0.1)
+            self.viewer.update()
+
+    def update_asset_ui(self, scene: Scene):
+        if not scene or not scene.assets:
+            self.asset_type_label.setText("Type: N/A")
+            self.asset_points_label.setText("Points: N/A")
+            return
+
+        # 첫 번째 에셋 정보 표시
+        asset_name = next(iter(scene.assets))
+        asset = scene.assets[asset_name]
+        
+        asset_type = type(asset).__name__
+        num_points = len(asset.points) if hasattr(asset, 'points') else 'N/A'
+
+        self.asset_type_label.setText(f"Type: {asset_type}")
+        self.asset_points_label.setText(f"Points: {num_points}")
+
+
 class Example_Window(QMainWindow):
-    """ViewerWidget을 중앙에 배치하는 간단한 메인 윈도우."""
+    """ViewerWidget을 중앙에 배치하고 정보 위젯을 추가하는 메인 윈도우."""
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("GUI Toolbox - Refactored Renderer Example")
-        self.setGeometry(100, 100, 1280, 720)
+        self.setWindowTitle("GUI Toolbox - Full Control Example")
+        self.setGeometry(100, 100, 1600, 900)
 
         self.viewer = ViewerWidget(parent=self)
         self.setCentralWidget(self.viewer)
+
+        self._setup_control_dock()
+
+    def _setup_control_dock(self):
+        """카메라 및 에셋 제어판을 위한 Dock Widget을 설정합니다."""
+        self.control_panel = ControlPanelWidget(self.viewer)
+        dock_widget = QDockWidget("Control Panel", self)
+        dock_widget.setWidget(self.control_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_widget)
+        
+        # GL 초기화 후 UI 업데이트
+        self.viewer.initialized.connect(self.control_panel.update_camera_ui)
+
+    def set_scene(self, scene: Scene):
+        """씬을 설정하고 UI를 업데이트합니다."""
+        self.viewer.Set_scene(scene)
+        self.control_panel.update_asset_ui(scene)
+        self.control_panel.update_camera_ui()
 
 
 def main():
@@ -103,8 +256,7 @@ def main():
     # ------------------------------------------
 
     # 위젯이 준비되면 Set_scene을 호출하도록 연결합니다.
-    # GL 컨텍스트가 생성된 후에 호출되어야 합니다.
-    window.viewer.initialized.connect(lambda: window.viewer.Set_scene(scene))
+    window.viewer.initialized.connect(lambda: window.set_scene(scene))
     
     window.show()
     sys.exit(app.exec())
