@@ -22,6 +22,9 @@ from OpenGL.GL import (
 from OpenGL.GL.shaders import ShaderProgram, compileProgram, compileShader
 from open3d import geometry
 
+from vision_toolbox.asset import Gaussian_3DGS
+from vision_toolbox.utils import geometry as Geo_Utils
+
 
 # --- Enums for OpenGL Options ---
 
@@ -135,12 +138,29 @@ DEFAULT_RENDER_OPT = (
 
 # --- Core Utility Functions ---
 
-def Get_3dgs_total_dim(sh_dim: int) -> int:
-    """SH 차수에 따른 3DGS 데이터의 총 float 개수를 계산."""
-    if sh_dim == 0:
-        return 14  # 기본(11) + RGB(3)
-    num_sh_coeffs = (sh_dim + 1) * (sh_dim + 1)
-    return 11 + 3 * num_sh_coeffs
+def Create_splat_buffer(asset: Gaussian_3DGS) -> np.ndarray:
+    """Gaussian_3DGS 에셋으로부터 std430 레이아웃에 맞는 SSBO 버퍼를 생성."""
+    _num_3dgs = len(asset.points)
+    if _num_3dgs == 0:
+        return np.array([], dtype=np.float32)
+
+    _covA, _covB = Geo_Utils.Compute_3d_covariance(asset.scales, asset.rotations)
+
+    # 셰이더의 Splat 구조체 레이아웃에 맞게 수동으로 패딩하여 버퍼 생성
+    # (vec3는 vec4처럼 16바이트 정렬됨)
+    _buffer = np.zeros((_num_3dgs, 76), dtype=np.float32)
+    _buffer[:, 0:3] = asset.points
+    _buffer[:, 3] = asset.opacities.flatten()
+    _buffer[:, 4:7] = _covA
+    _buffer[:, 8:11] = _covB
+    
+    _sh_features = asset.sh_features.reshape(_num_3dgs, 16, 3)
+    _sh_start_index = 12
+    for i in range(16):
+        _sh_slot = _sh_start_index + i * 4
+        _buffer[:, _sh_slot:_sh_slot + 3] = _sh_features[:, i, :]
+    
+    return _buffer
 
 def Build_rnd(shader_type: str) -> ShaderProgram:
     """타입에 맞는 렌더링 셰이더 빌드."""

@@ -21,13 +21,12 @@ from OpenGL.GL import (
 from OpenGL.GL.shaders import ShaderProgram
 
 from open3d import geometry
-from vision_toolbox.asset import Gaussian_3D
-
-from vision_toolbox.utils.geometry import Convert
+from vision_toolbox.asset import Gaussian_3DGS
 
 from .definitions import (
     Resource, Render_Object,
-    Buf_Name, Prim, Shader_Type, Draw_Opt, Obj_Type, Sorter_Type
+    Buf_Name, Prim, Shader_Type, Draw_Opt, Obj_Type, Sorter_Type,
+    Create_splat_buffer
 )
 
 # PyTorch 가용성 확인
@@ -158,12 +157,12 @@ class Sorter:
                     _xyz, device='cuda', dtype=torch.float32)
                 self.gaus_id = id(obj)
 
-            view_mat_torch = torch.tensor(
+            _view_mat_torch = torch.tensor(
                 view_mat, device='cuda', dtype=torch.float32)
-            _xyz_view = self.xyz_buffer @ view_mat_torch[:3, :3].T + view_mat_torch[:3, 3]
-            indices = torch.argsort(_xyz_view[:, 2])
-            indices_np = indices.cpu().numpy().astype(np.uint32)
-            self._Reorder_data_on_gpu(obj, indices_np)
+            _xyz_view = self.xyz_buffer @ _view_mat_torch[:3, :3].T + _view_mat_torch[:3, 3]
+            _indices = torch.argsort(_xyz_view[:, 2])
+            _indices_np = _indices.cpu().numpy().astype(np.uint32)
+            self._Reorder_data_on_gpu(obj, _indices_np)
 
     class CPU(_Sorter_Helper):
         """NumPy(CPU)를 사용하여 가우시안을 정렬하는 클래스."""
@@ -173,8 +172,8 @@ class Sorter:
             """NumPy로 인덱스를 계산하고 GPU에서 데이터를 재배열합니다."""
             _xyz = obj.cpu_data["xyz"]
             _xyz_view = _xyz @ view_mat[:3, :3].T + view_mat[:3, 3]
-            indices = np.argsort(_xyz_view[:, 2]).astype(np.uint32)
-            self._Reorder_data_on_gpu(obj, indices)
+            _indices = np.argsort(_xyz_view[:, 2]).astype(np.uint32)
+            self._Reorder_data_on_gpu(obj, _indices)
 
 
 class Handler:
@@ -202,7 +201,7 @@ class Handler:
 
     class Simple(Base):
         """단순 지오메트리(o3d) 처리 담당."""
-        def __Get_data_from_o3d(self, res: Resource):
+        def _Get_data_from_o3d(self, res: Resource):
             _g, _type, _c_opt = res.data, res.obj_type, res.color_opt
             _pts, _idx, _colors = np.array([]), np.array([]), None
 
@@ -238,7 +237,7 @@ class Handler:
             self, vao: int, vbos: list[int], ebo: int | None, res: Resource
         ) -> Render_Object:
             glBindVertexArray(vao)
-            _mode, _data, _idx = self.__Get_data_from_o3d(res)
+            _mode, _data, _idx = self._Get_data_from_o3d(res)
             _v_ct, _i_ct = len(_data[0]), len(_idx)
 
             for i, d in enumerate(_data):
@@ -282,53 +281,34 @@ class Handler:
         def Bind(
             self, vao: int, vbos: list[int], ebo: int | None, res: Resource
         ) -> Render_Object:
-            _data: Gaussian_3D = res.data
+            _data: Gaussian_3DGS = res.data
             _num_3dgs = len(_data.points)
 
-            # Get display-ready data
-            _attr = _data._Gaussian_3D__Ready_to_display_dict()
-            points = _attr['points']
-            rotations = _attr['rotations']
-            scales = _attr['scales']
-            opacities = _attr['opacities']
-            sh_features = _attr['colors']
-
-            # Compute covariance
-            covA, covB = Convert.Compute_3D_covariance(scales, rotations)
-
             # Create padded buffer for std430 layout
-            buffer = np.zeros((_num_3dgs, 76), dtype=np.float32)
-            buffer[:, 0:3] = points
-            buffer[:, 3] = opacities.flatten()
-            buffer[:, 4:7] = covA
-            buffer[:, 8:11] = covB
-            colors_reshaped = sh_features.reshape(_num_3dgs, 16, 3)
-            sh_start_index = 12
-            for i in range(16):
-                buffer[:, sh_start_index + i * 4: sh_start_index + i * 4 + 3] = colors_reshaped[:, i, :]
+            _buffer = Create_splat_buffer(_data)
 
             _ssbo_gaus = glGenBuffers(1)
             glBindBuffer(Buf_Name.SSBO, _ssbo_gaus)
-            glBufferData(Buf_Name.SSBO, buffer.nbytes, buffer, res.draw_opt)
+            glBufferData(Buf_Name.SSBO, _buffer.nbytes, _buffer, res.draw_opt)
 
             _ssbo_reordered = glGenBuffers(1)
             glBindBuffer(Buf_Name.SSBO, _ssbo_reordered)
-            glBufferData(Buf_Name.SSBO, buffer.nbytes, None, Draw_Opt.DYNAMIC)
+            glBufferData(Buf_Name.SSBO, _buffer.nbytes, None, Draw_Opt.DYNAMIC)
 
-            buffers = {"gaus": _ssbo_gaus, "reordered": _ssbo_reordered}
-            cpu_data = None
+            _buffers = {"gaus": _ssbo_gaus, "reordered": _ssbo_reordered}
+            _cpu_data = None
 
             if self.sorter_type is Sorter_Type.OPENGL:
                 _ssbo_sort = glGenBuffers(1)
                 glBindBuffer(Buf_Name.SSBO, _ssbo_sort)
                 glBufferData(Buf_Name.SSBO, _num_3dgs * 8, None, Draw_Opt.DYNAMIC)
-                buffers["sort"] = _ssbo_sort
+                _buffers["sort"] = _ssbo_sort
             else:
                 _ssbo_indices = glGenBuffers(1)
                 glBindBuffer(Buf_Name.SSBO, _ssbo_indices)
                 glBufferData(Buf_Name.SSBO, _num_3dgs * 4, None, Draw_Opt.DYNAMIC)
-                buffers["indices"] = _ssbo_indices
-                cpu_data = {"xyz": _data.points}
+                _buffers["indices"] = _ssbo_indices
+                _cpu_data = {"xyz": _data.points}
 
             glBindBuffer(Buf_Name.SSBO, 0)
 
@@ -337,8 +317,8 @@ class Handler:
                 shader_type=Shader_Type.GAUSSIAN_SPLAT,
                 prim_mode=Prim.TRIANGLES,
                 model_mat=res.pose,
-                buffers=buffers,
-                cpu_data=cpu_data,
+                buffers=_buffers,
+                cpu_data=_cpu_data,
                 inst_count=_num_3dgs
             )
 

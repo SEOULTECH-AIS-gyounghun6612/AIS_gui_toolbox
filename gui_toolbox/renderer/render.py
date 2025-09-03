@@ -16,9 +16,9 @@ from .definitions import (
     Resource, Render_Object, Render_Opt, Clear_Opt,
     Shader_Type, Buf_Name, Draw_Opt, Sorter_Type,
     Build_rnd, Build_compute, Create_uniform_setter,
-    OBJ_TO_SHADER, DEFAULT_RENDER_OPT, Get_3dgs_total_dim
+    OBJ_TO_SHADER, DEFAULT_RENDER_OPT
 )
-from .scene import View_Cam
+from .scene_manager import View_Cam
 from .handler import Sorter, Handler
 
 
@@ -31,7 +31,7 @@ class OpenGL_Renderer:
         enable_opts: tuple[Render_Opt, ...] = DEFAULT_RENDER_OPT,
         clear_mask: Clear_Opt = Clear_Opt.COLOR | Clear_Opt.DEPTH
     ):
-        self.render_block: dict[str, Render_Object] = {}
+        self.render_objects: dict[str, Render_Object] = {}
         self.shader_obj_map: dict[Shader_Type, list[str]] = {
             _type: [] for _type in Shader_Type
         }
@@ -50,7 +50,7 @@ class OpenGL_Renderer:
         self.sorter: Sorter.Base | None = None
         self.handlers: dict[Shader_Type, Handler.Base] = {}
 
-    def __Create_quad_mesh(self):
+    def _Create_quad_mesh(self):
         _vts = np.array([-1,1, 1,1, 1,-1, -1,-1], dtype=np.float32)
         _faces = np.array([0,1,2, 0,2,3], dtype=np.uint32)
         self.quad_idx_count = _faces.size
@@ -66,7 +66,7 @@ class OpenGL_Renderer:
         glBufferData(Buf_Name.EBO, _faces.nbytes, _faces, Draw_Opt.STATIC)
         glBindVertexArray(0)
 
-    def initialize(self):
+    def Initialize(self):
         """렌더러 초기화 (셰이더, GL 옵션, 핸들러 생성)."""
         _render_progs = {s.value: Build_rnd(s) for s in Shader_Type}
         _compute_progs = Build_compute([
@@ -83,7 +83,7 @@ class OpenGL_Renderer:
             if opt is Render_Opt.BLEND:
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-        self.__Create_quad_mesh()
+        self._Create_quad_mesh()
 
         if self.sorter_type is Sorter_Type.OPENGL:
             self.sorter = Sorter.OpenGL(
@@ -113,101 +113,67 @@ class OpenGL_Renderer:
                 self.quad_vao, self.sorter_type)
         }
 
-    def __Bind_geom(self, vao, vbos, ebo, res: Resource) -> Render_Object:
+    def _Bind_geom(self, vao, vbos, ebo, res: Resource) -> Render_Object:
         _shader_type = OBJ_TO_SHADER[res.obj_type]
         _handler = self.handlers[_shader_type]
         return _handler.Bind(vao, vbos, ebo, res)
 
-    def __Prepare_gl_buffers(self, to_add: dict[str, Resource]):
-        _n_vao = len(to_add)
-        _n_vbo = sum(res.num_vbo for res in to_add.values())
-        _vao = glGenVertexArrays(_n_vao) if _n_vao > 0 else []
+    def _Prepare_gl_buffers(self, resources: dict[str, Resource]):
+        _n_res = len(resources)
+        _n_vbo = sum(res.num_vbo for res in resources.values())
+        _vao = glGenVertexArrays(_n_res) if _n_res > 0 else []
         _vbos = glGenBuffers(_n_vbo) if _n_vbo > 0 else []
-        _ebo = glGenBuffers(_n_vao) if _n_vao > 0 else []
-        if _n_vao == 1:
+        _ebo = glGenBuffers(_n_res) if _n_res > 0 else []
+        if _n_res == 1:
             _vao, _ebo = [_vao], [_ebo]
+        
         _bind_args, _vb_offset = {}, 0
-        for i, (name, res) in enumerate(to_add.items()):
+        for i, (name, res) in enumerate(resources.items()):
             _num_vbo = res.num_vbo
             _vbo_slice = list(_vbos[_vb_offset : _vb_offset + _num_vbo])
             _bind_args[name] = (_vao[i], _vbo_slice, _ebo[i], res)
             _vb_offset += _num_vbo
         return _bind_args
 
-    def Del_geometry(self, names: list[str]):
-        _r_block, _s_table = self.render_block, self.shader_obj_map
+    def Remove_resources(self, names: list[str]):
+        """이름에 해당하는 리소스들을 렌더링 목록에서 제거합니다."""
         for name in names:
-            _obj = _r_block.pop(name, None)
+            _obj = self.render_objects.pop(name, None)
             if not _obj:
                 continue
-            _s_table[_obj.shader_type].remove(name)
+            self.shader_obj_map[_obj.shader_type].remove(name)
             self.handlers[_obj.shader_type].Release(_obj)
 
-    def Add_resource(self, name: str, res: Resource):
-        """단일 리소스를 렌더링 목록에 추가하거나 업데이트합니다."""
-        if name in self.render_block:
-            self.Del_geometry([name])
+    def Add_or_update_resources(self, resources: dict[str, Resource]):
+        """리소스들을 렌더링 목록에 추가하거나 업데이트합니다."""
+        # 기존 리소스가 있다면 먼저 제거
+        self.Remove_resources(list(resources.keys()))
 
-        _bind_args = self.__Prepare_gl_buffers({name: res})
-        _obj = self.__Bind_geom(*list(_bind_args.values())[0])
-        self.render_block[name] = _obj
-        self.shader_obj_map[_obj.shader_type].append(name)
+        # 새 리소스 준비 및 바인딩
+        _bind_args = self._Prepare_gl_buffers(resources)
+        for name, args in _bind_args.items():
+            _obj = self._Bind_geom(*args)
+            self.render_objects[name] = _obj
+            self.shader_obj_map[_obj.shader_type].append(name)
 
-    def Remove_resource(self, name: str):
-        """단일 리소스를 렌더링 목록에서 제거합니다."""
-        self.Del_geometry([name])
-
-    def Set_resources(self, res_block: dict[str, Resource]):
-        _old_names = set(self.render_block.keys())
-        _new_names = set(res_block.keys())
-        _to_del = list(_old_names - _new_names)
-        _to_add = {_n: res_block[_n] for _n in (_new_names - _old_names)}
-        _bind_args = {}
-
-        _r_block, _s_table = self.render_block, self.shader_obj_map
-        for _n in _old_names & _new_names:
-            _old_obj, _new_res = _r_block[_n], res_block[_n]
-            if _new_res.num_vbo == len(_old_obj.vbos):
-                _bind_args[_n] = (*_old_obj.Get_ids(), _new_res)
-                _n_shader_type = OBJ_TO_SHADER[_new_res.obj_type]
-                if _old_obj.shader_type is not _n_shader_type:
-                    _s_table[_old_obj.shader_type].remove(_n)
-                    _s_table[_n_shader_type].append(_n)
-            else:
-                _to_del.append(_n)
-                _to_add[_n] = _new_res
-
-        if _to_del:
-            self.Del_geometry(_to_del)
-        if _to_add:
-            _bind_args.update(self.__Prepare_gl_buffers(_to_add))
-        if not _bind_args:
-            return
-
-        for _n, _args in _bind_args.items():
-            _obj = self.__Bind_geom(*_args)
-            _r_block[_n] = _obj
-            if _n in _to_add:
-                _s_table[_obj.shader_type].append(_n)
-
-    def __Background_init(self):
+    def _Background_init(self):
         glClearColor(*self.bg_color)
         glClear(self.clear_mask)
 
-    def __Render_each_obj(self, obj: Render_Object, setters: dict):
+    def _Render_each_obj(self, obj: Render_Object, setters: dict):
         setters["mat4"]("model", obj.model_mat)
         self.handlers[obj.shader_type].Draw(obj, self.quad_idx_count)
 
-    def __Sort_and_reorder_gaussians(self, obj: Render_Object, camera: View_Cam):
+    def _Sort_and_reorder_gaussians(self, obj: Render_Object, camera: View_Cam):
         self.sorter.Sort(obj, camera.view_mat)
 
     def Render(self, camera: View_Cam):
-        self.__Background_init()
-        _r_block = self.render_block
+        self._Background_init()
+        _r_objs = self.render_objects
 
         _gs_names = self.shader_obj_map[Shader_Type.GAUSSIAN_SPLAT]
         for _n in _gs_names:
-            self.__Sort_and_reorder_gaussians(_r_block[_n], camera)
+            self._Sort_and_reorder_gaussians(_r_objs[_n], camera)
 
         for _s_type, _n_list in self.shader_obj_map.items():
             if not _n_list:
@@ -218,19 +184,22 @@ class OpenGL_Renderer:
             glUseProgram(_shader)
             _setters = self.setters[_s_name]
             _setters["mat4"]("view", camera.view_mat)
-            _setters["mat4"]("projection", camera.proj_matrix)
+            _setters["mat4"]("projection", camera.proj_mat)
 
             if _s_type is Shader_Type.GAUSSIAN_SPLAT:
-                focal_viewport = camera.Get_hfovxy_focal()
-                _setters["vec2"]("focal", focal_viewport[:2])
-                _setters["vec2"]("viewport", np.array([camera.width, camera.height]))
-                _setters["vec3"]("cam_pos", camera.position)
+                _cam_data = camera.cam_data
+                _fx = _cam_data.intrinsics[0, 0]
+                _fy = _cam_data.intrinsics[1, 1]
+                _w, _h = _cam_data.image_size
+                _setters["vec2"]("focal", np.array([_fx, _fy]))
+                _setters["vec2"]("viewport", np.array([_w, _h]))
+                _setters["vec3"]("cam_pos", _cam_data.pose[:3, 3])
                 _setters["int"]("sh_dim", self.sh_dim)
                 _setters["int"]("render_mod", self.gau_splat_mode)
                 _setters["float"]("scale_modifier", 1.0)
                 _setters["bool"]("use_stabilization", False)
 
             for _n in _n_list:
-                self.__Render_each_obj(_r_block[_n], _setters)
+                self._Render_each_obj(_r_objs[_n], _setters)
 
         glBindVertexArray(0)
