@@ -75,6 +75,7 @@ class Shader_Type(StrEnum):
 class Obj_Type(StrEnum):
     GAUSSIAN_SPLAT = "3dgs"
     TRAJ = "trajectory"
+    POINTS = "points"
 
 # --- Data Structures ---
 
@@ -118,7 +119,8 @@ class Render_Object:
 
 OBJ_TO_SHADER: dict[Obj_Type, Shader_Type] = {
     Obj_Type.GAUSSIAN_SPLAT: Shader_Type.GAUSSIAN_SPLAT,
-    Obj_Type.TRAJ: Shader_Type.SIMPLE
+    Obj_Type.TRAJ: Shader_Type.SIMPLE,
+    Obj_Type.POINTS: Shader_Type.SIMPLE
 }
 
 SHADER_TO_NUM_VBO: dict[Shader_Type, int] = {

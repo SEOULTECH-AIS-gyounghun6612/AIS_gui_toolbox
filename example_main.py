@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QLabel, QDoubleSpinBox, QComboBox, QCheckBox
 )
 from scipy.spatial.transform import Rotation as R
+import open3d as o3d
 
 from gui_toolbox import Application_Starter, Main_Window
 from gui_toolbox.widget import ViewerWidget
@@ -30,6 +31,7 @@ class Render_Example_Window(Main_Window):
     def __Initialize_data__(self, **kwarg):
         """데이터 관련 초기화."""
         self.random_dgs_count = 0
+        self.random_points_count = 0
 
     def __Initialize_interface__(self, **kwarg):
         """UI 초기화. 뷰어, 버튼, 카메라 컨트롤 패널을 생성하고 배치합니다."""
@@ -61,10 +63,13 @@ class Render_Example_Window(Main_Window):
         layout = QHBoxLayout(group)
         add_axis_btn = QPushButton("Add Axis")
         add_random_btn = QPushButton("Add Random Gaussians")
+        add_points_btn = QPushButton("Add Random Points")
         layout.addWidget(add_axis_btn)
         layout.addWidget(add_random_btn)
+        layout.addWidget(add_points_btn)
         add_axis_btn.clicked.connect(self.add_axis)
         add_random_btn.clicked.connect(self.add_random_gaussians)
+        add_points_btn.clicked.connect(self.add_random_points)
         return group
 
     def __Create_abs_camera_controls(self) -> QGroupBox:
@@ -195,6 +200,25 @@ class Render_Example_Window(Main_Window):
             new_name: Resource(
                 obj_type=Obj_Type.GAUSSIAN_SPLAT,
                 data=Create_random_3DGS(num_points=2000)
+            )
+        })
+
+    def add_random_points(self):
+        self.random_points_count += 1
+        new_name = f"random_points_{self.random_points_count}"
+        print(f"Adding new asset: {new_name}")
+        
+        # Create random points
+        points = np.random.rand(1000, 3) * 2 - 1  # Random points in [-1, 1] cube
+        
+        # Create Open3D PointCloud
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        
+        self.viewer.add_asset({
+            new_name: Resource(
+                obj_type=Obj_Type.POINTS,
+                data=pcd
             )
         })
 
