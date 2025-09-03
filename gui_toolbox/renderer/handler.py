@@ -21,7 +21,7 @@ from OpenGL.GL import (
 from OpenGL.GL.shaders import ShaderProgram
 
 from open3d import geometry
-from vision_toolbox.asset import Gaussian_3DGS
+from vision_toolbox.asset import Gaussian_3DGS, Point_Cloud
 
 from .definitions import (
     Resource, Render_Object,
@@ -204,8 +204,13 @@ class Handler:
         def _Get_data_from_o3d(self, res: Resource):
             _g, _type, _c_opt = res.data, res.obj_type, res.color_opt
             _pts, _idx, _colors = np.array([]), np.array([]), None
+            _m = Prim.POINTS
 
-            if isinstance(_g, (geometry.PointCloud, geometry.LineSet)):
+            if isinstance(_g, Point_Cloud):
+                _pts = _g.points.astype(np.float32)
+                if hasattr(_g, 'colors') and _g.colors.size > 0:
+                    _colors = _g.colors.astype(np.float32) / 255.0
+            elif isinstance(_g, (geometry.PointCloud, geometry.LineSet)):
                 _pts = np.asarray(_g.points, dtype=np.float32)
                 if _g.has_colors():
                     _colors = np.asarray(_g.colors, dtype=np.float32)
