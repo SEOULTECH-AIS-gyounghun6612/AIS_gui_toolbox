@@ -30,9 +30,6 @@ layout(location = 0) in vec2 position;
 layout (std430, binding=0) buffer gaussian_data {
     float g_data[];
 };
-layout (std430, binding=1) buffer gaussian_order {
-    int gi[];
-};
 
 uniform mat4 view;
 uniform mat4 projection;
@@ -119,8 +116,7 @@ void main()
         int num_sh_coeffs = (sh_dim + 1) * (sh_dim + 1);
         total_dim = 11 + 3 * num_sh_coeffs;
     }
-    int boxid = gi[gl_InstanceID];
-    int start = boxid * total_dim;
+    int start = gl_InstanceID * total_dim;
 
     // --- 2. 기하학적 계산 (위치, 크기, 모양) ---
     vec4 g_pos = vec4(get_vec3(start + POS_IDX), 1.f);
