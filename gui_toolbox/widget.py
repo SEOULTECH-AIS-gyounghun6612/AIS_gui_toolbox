@@ -18,6 +18,7 @@ CV_TO_GL = np.array([
 class ViewerWidget(QOpenGLWidget):
     """PyQt6 QOpenGLWidget을 상속받는 3D 뷰어 위젯"""
     initialized = Signal()
+    camera_moved = Signal()
 
     def __init__(
         self,
@@ -91,7 +92,9 @@ class ViewerWidget(QOpenGLWidget):
 
         self.last_mouse_pos = event.pos()
         self.update()
+        self.camera_moved.emit()
 
     def wheelEvent(self, event):
         self.camera.Zoom(event.angleDelta().y())
         self.update()
+        self.camera_moved.emit()
