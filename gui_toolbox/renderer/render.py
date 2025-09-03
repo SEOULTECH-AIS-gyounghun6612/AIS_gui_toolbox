@@ -183,21 +183,25 @@ class OpenGL_Renderer:
             _shader = self.shader_progs[_s_name]
             glUseProgram(_shader)
             _setters = self.setters[_s_name]
-            _setters["mat4"]("view", camera.view_mat)
-            _setters["mat4"]("projection", camera.proj_mat)
 
             if _s_type is Shader_Type.GAUSSIAN_SPLAT:
+                _setters["mat4"]("u_view_matrix", camera.view_mat)
+                _setters["mat4"]("u_projection_matrix", camera.proj_mat)
+                
                 _cam_data = camera.cam_data
                 _fx = _cam_data.intrinsics[0, 0]
                 _fy = _cam_data.intrinsics[1, 1]
                 _w, _h = _cam_data.image_size
-                _setters["vec2"]("focal", np.array([_fx, _fy]))
-                _setters["vec2"]("viewport", np.array([_w, _h]))
+                _setters["vec2"]("u_focal", np.array([_fx, _fy]))
+                _setters["vec2"]("u_viewport", np.array([_w, _h]))
                 _setters["vec3"]("cam_pos", _cam_data.pose[:3, 3])
                 _setters["int"]("sh_dim", self.sh_dim)
                 _setters["int"]("render_mod", self.gau_splat_mode)
                 _setters["float"]("scale_modifier", 1.0)
                 _setters["bool"]("use_stabilization", False)
+            else:
+                _setters["mat4"]("view", camera.view_mat)
+                _setters["mat4"]("projection", camera.proj_mat)
 
             for _n in _n_list:
                 self._Render_each_obj(_r_objs[_n], _setters)
