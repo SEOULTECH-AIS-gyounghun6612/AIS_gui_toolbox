@@ -71,7 +71,7 @@ class View_Cam:
     yaw: float = -90.0  # Degrees
     pitch: float = 0.0  # Degrees
 
-    fov_x_rad: float = np.radians(90.0)
+    fov_x_rad: float = np.radians(60.0)
     near_plane: float = 0.1
     far_plane: float = 1000.0
 
@@ -136,6 +136,31 @@ class View_Cam:
         self.position += front * forward_delta * sensitivity
         self.position += right * right_delta * sensitivity
         self.position += up * up_delta * sensitivity
+        self.__Update_view_mat()
+
+    def Frame(self, aabb: np.ndarray):
+        """주어진 AABB에 맞춰 카메라 위치와 방향을 조정합니다."""
+        center = np.mean(aabb, axis=0)
+        size = np.diff(aabb, axis=0).flatten()
+
+        # 가장 큰 축을 기준으로 거리 계산
+        max_dim = np.max(size)
+        
+        # 수평/수직 FOV 중 더 작은 값을 기준으로 거리 계산
+        fov_rad = min(self.fov_x_rad, self.fov_y_rad)
+        distance = (max_dim / 2.0) / np.tan(fov_rad / 2.0)
+        
+        # 카메라 위치를 바운딩 박스 중앙에서 Z축 방향으로 거리만큼 이동
+        self.position = center + np.array([0, 0, distance * 2.0]) # 약간의 여유 공간 추가
+        
+        # 카메라가 바운딩 박스의 중심을 바라보도록 설정
+        direction = center - self.position
+        direction = direction / np.linalg.norm(direction)
+        
+        self.pitch = np.degrees(np.arcsin(direction[1]))
+        self.yaw = np.degrees(np.arctan2(direction[2], direction[0]))
+        self.pitch = np.clip(self.pitch, -89.0, 89.0)
+
         self.__Update_view_mat()
 
     def Set_view_mat(self, view_mat: TF_M):

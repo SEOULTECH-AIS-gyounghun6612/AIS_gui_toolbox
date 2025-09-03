@@ -64,12 +64,15 @@ class Render_Example_Window(Main_Window):
         add_axis_btn = QPushButton("Add Axis")
         add_random_btn = QPushButton("Add Random Gaussians")
         add_points_btn = QPushButton("Add Random Points")
+        frame_scene_btn = QPushButton("Frame Scene")
         layout.addWidget(add_axis_btn)
         layout.addWidget(add_random_btn)
         layout.addWidget(add_points_btn)
+        layout.addWidget(frame_scene_btn)
         add_axis_btn.clicked.connect(self.add_axis)
         add_random_btn.clicked.connect(self.add_random_gaussians)
         add_points_btn.clicked.connect(self.add_random_points)
+        frame_scene_btn.clicked.connect(self.frame_scene)
         return group
 
     def __Create_abs_camera_controls(self) -> QGroupBox:

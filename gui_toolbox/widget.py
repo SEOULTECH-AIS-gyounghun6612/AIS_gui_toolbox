@@ -33,7 +33,7 @@ class ViewerWidget(QOpenGLWidget):
         self.last_mouse_pos = QPoint()
         
         self._gl_initialized: bool = False
-        self._pending_assets: dict[str, Resource] = {}
+        self.asset_block: dict[str, Resource] = {}
 
         _opts = enable_opts if enable_opts is not None else (
             Render_Opt.DEPTH, Render_Opt.BLEND,
@@ -51,21 +51,18 @@ class ViewerWidget(QOpenGLWidget):
         self.renderer.initialize()
         self._gl_initialized = True
 
-        if self._pending_assets:
-            for name, res in self._pending_assets.items():
-                self.renderer.Add_resource(name, res)
-            self._pending_assets = {}
+        if self.asset_block:
+            self.renderer.Set_resources(self.asset_block)
         
         self.initialized.emit()
 
     def add_asset(self, data: dict[str, Resource]):
         """렌더링할 에셋을 추가하거나 업데이트합니다."""
+        self.asset_block.update(data)
         if not self._gl_initialized:
-            self._pending_assets.update(data)
             return
         
-        for name, res in data.items():
-            self.renderer.Add_resource(name, res)
+        self.renderer.Set_resources(self.asset_block)
         self.update()
 
     def resizeGL(self, w: int, h: int):
