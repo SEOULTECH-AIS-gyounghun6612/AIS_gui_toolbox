@@ -143,6 +143,20 @@ class OpenGL_Renderer:
             _s_table[_obj.shader_type].remove(name)
             self.handlers[_obj.shader_type].Release(_obj)
 
+    def Add_resource(self, name: str, res: Resource):
+        """단일 리소스를 렌더링 목록에 추가하거나 업데이트합니다."""
+        if name in self.render_block:
+            self.Del_geometry([name])
+
+        _bind_args = self.__Prepare_gl_buffers({name: res})
+        _obj = self.__Bind_geom(*list(_bind_args.values())[0])
+        self.render_block[name] = _obj
+        self.shader_obj_map[_obj.shader_type].append(name)
+
+    def Remove_resource(self, name: str):
+        """단일 리소스를 렌더링 목록에서 제거합니다."""
+        self.Del_geometry([name])
+
     def Set_resources(self, res_block: dict[str, Resource]):
         _old_names = set(self.render_block.keys())
         _new_names = set(res_block.keys())

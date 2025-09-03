@@ -52,7 +52,8 @@ class ViewerWidget(QOpenGLWidget):
         self._gl_initialized = True
 
         if self._pending_assets:
-            self.add_asset(self._pending_assets)
+            for name, res in self._pending_assets.items():
+                self.renderer.Add_resource(name, res)
             self._pending_assets = {}
         
         self.initialized.emit()
@@ -63,7 +64,8 @@ class ViewerWidget(QOpenGLWidget):
             self._pending_assets.update(data)
             return
         
-        self.renderer.Set_resources(data)
+        for name, res in data.items():
+            self.renderer.Add_resource(name, res)
         self.update()
 
     def resizeGL(self, w: int, h: int):
