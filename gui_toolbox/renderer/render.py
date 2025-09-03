@@ -18,7 +18,7 @@ from .definitions import (
     Build_rnd, Build_compute, Create_uniform_setter,
     OBJ_TO_SHADER, DEFAULT_RENDER_OPT
 )
-from .scene_manager import View_Cam
+from .view_camera import View_Cam
 from .handler import Sorter, Handler
 
 
