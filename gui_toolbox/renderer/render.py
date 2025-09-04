@@ -291,6 +291,7 @@ class OpenGL_Renderer:
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
 
     def Render(self, camera: View_Cam):
+        print("[Renderer DEBUG] Render Call") # Check if the render loop is running
         self._background_init()
         _r_objs = self.render_objects
 
