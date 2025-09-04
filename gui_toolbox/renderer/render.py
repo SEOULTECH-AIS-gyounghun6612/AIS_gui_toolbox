@@ -89,10 +89,11 @@ class OpenGL_Renderer:
         }
         self._check_gl_error("Shader Compilation")
 
-        for opt in self.enable_opts:
-            glEnable(opt)
-            if opt is Render_Opt.BLEND:
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        # Temporarily disable GL_DEPTH_TEST and GL_BLEND for debugging
+        # for opt in self.enable_opts:
+        #     glEnable(opt)
+        #     if opt is Render_Opt.BLEND:
+        #         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         self._check_gl_error("GL Options Enable")
 
         self._create_quad_mesh()
@@ -139,17 +140,12 @@ class OpenGL_Renderer:
         _idx = _idx.astype(np.uint32)
         _v_ct, _i_ct = len(_data[0]), len(_idx)
         print(f"  - Type: {_type.value}, Vertices: {_v_ct}, Indices: {_i_ct}")
-        print(f"  - Points data (first 3):\n{_pts[:3]}")
-        print(f"  - Colors data (first 3):\n{_c[:3]}")
-        print(f"  - Indices data (first 6):\n{_idx[:6]}")
 
         glBindVertexArray(vao)
         for i, d in enumerate(_data):
             glBindBuffer(Buf_Name.VBO, vbos[i])
             glBufferData(Buf_Name.VBO, d.nbytes, d, res.draw_opt)
-            print(f"  - glVertexAttribPointer(location={i}, size=3, type=GL_FLOAT, normalized=GL_FALSE, stride=0, pointer=None)")
             glVertexAttribPointer(i, 3, GL_FLOAT, GL_FALSE, 0, None)
-            print(f"  - glEnableVertexAttribArray(location={i})")
             glEnableVertexAttribArray(i)
 
         if _i_ct > 0:
