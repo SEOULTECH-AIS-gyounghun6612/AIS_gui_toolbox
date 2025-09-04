@@ -147,7 +147,9 @@ class OpenGL_Renderer:
         for i, d in enumerate(_data):
             glBindBuffer(Buf_Name.VBO, vbos[i])
             glBufferData(Buf_Name.VBO, d.nbytes, d, res.draw_opt)
+            print(f"  - glVertexAttribPointer(location={i}, size=3, type=GL_FLOAT, normalized=GL_FALSE, stride=0, pointer=None)")
             glVertexAttribPointer(i, 3, GL_FLOAT, GL_FALSE, 0, None)
+            print(f"  - glEnableVertexAttribArray(location={i})")
             glEnableVertexAttribArray(i)
 
         if _i_ct > 0:
