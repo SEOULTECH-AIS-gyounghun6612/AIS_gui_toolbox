@@ -196,15 +196,15 @@ class OpenGL_Renderer:
     def _prepare_gl_buffers(self, resources: dict[str, Resource]):
         _n_res = len(resources)
         _n_vbo = sum(res.num_vbo for res in resources.values())
+        
         _vao = glGenVertexArrays(_n_res) if _n_res > 0 else []
         _vbos = glGenBuffers(_n_vbo) if _n_vbo > 0 else []
         _ebo = glGenBuffers(_n_res) if _n_res > 0 else []
-        if not isinstance(_vao, list) and _n_res > 0:
-             _vao = [_vao]
-        if not isinstance(_ebo, list) and _n_res > 0:
-             _ebo = [_ebo]
-        if not isinstance(_vbos, list) and _n_vbo > 0:
-             _vbos = [_vbos]
+
+        # Ensure results are always iterable lists
+        _vao = np.atleast_1d(_vao).tolist()
+        _vbos = np.atleast_1d(_vbos).tolist()
+        _ebo = np.atleast_1d(_ebo).tolist()
 
         _bind_args, _vb_offset = {}, 0
         for i, (name, res) in enumerate(resources.items()):
@@ -315,6 +315,7 @@ class OpenGL_Renderer:
             # Set common uniforms for the shader type
             if _s_type is Shader_Type.GAUSSIAN_SPLAT:
                 _setters["mat4"]("u_projection_matrix", camera.proj_mat)
+                _setters["mat4"]("u_view_matrix", camera.view_mat)
                 _cam_data = camera.cam_data
                 _fx, _fy = _cam_data.intrinsics[0, 0], _cam_data.intrinsics[1, 1]
                 _w, _h = _cam_data.image_size
@@ -322,8 +323,7 @@ class OpenGL_Renderer:
                 _setters["vec2"]("u_viewport", np.array([_w, _h]))
             else:
                 _setters["mat4"]("projection", camera.proj_mat)
-            
-            _setters["mat4"]("view", camera.view_mat)
+                _setters["mat4"]("view", camera.view_mat)
             self._check_gl_error(f"Set Common Uniforms for {_s_name}")
 
             # Draw each object
