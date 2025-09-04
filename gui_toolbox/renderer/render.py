@@ -1,4 +1,4 @@
-"""OpenGL Renderer Module."""
+"OpenGL Renderer Module."
 
 import numpy as np
 from OpenGL.GL import (
@@ -97,9 +97,6 @@ class OpenGL_Renderer:
         self._check_gl_error("GL Options Enable")
 
         self._create_quad_mesh()
-        # Debugging: Force an OpenGL error to check if _check_gl_error works
-        glGetError() # Clear any previous error
-        glEnable(99999) # This should cause an invalid enum error
         self._check_gl_error("Renderer Initialization Complete")
 
     def _bind_simple_geom(self, name: str, vao: int, vbos: list, ebo: int, res: Resource) -> Render_Object:
@@ -304,6 +301,9 @@ class OpenGL_Renderer:
             self._sort_gaussians(_r_objs[_n], camera.view_mat)
         self._check_gl_error("After Gaussian Sort")
 
+        print(f"[Renderer DEBUG] Projection Matrix:\n{camera.proj_mat}")
+        print(f"[Renderer DEBUG] View Matrix:\n{camera.view_mat}")
+
         for _s_type, _n_list in self.shader_obj_map.items():
             if not _n_list: continue
 
@@ -328,6 +328,7 @@ class OpenGL_Renderer:
 
             for _n in _n_list:
                 obj = _r_objs[_n]
+                print(f"[Renderer DEBUG] Model Matrix for {_n}:\n{obj.model_mat}")
                 _setters["mat4"]("model", obj.model_mat)
                 
                 if _s_type is Shader_Type.GAUSSIAN_SPLAT:
