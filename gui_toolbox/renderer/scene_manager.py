@@ -178,6 +178,10 @@ class Scene_Manager:
         _fov_y = 2 * np.arctan(_h / (2 * _fy))
         _fov = min(_fov_x, _fov_y)
         
+        print(f"[DEBUG] FOV_x: {np.degrees(_fov_x)} degrees")
+        print(f"[DEBUG] FOV_y: {np.degrees(_fov_y)} degrees")
+        print(f"[DEBUG] Min FOV: {np.degrees(_fov)} degrees")
+
         _distance = (_size / 2.0) / np.tan(_fov / 2.0)
         _new_pos = _center + np.array([0, 0, _distance * 1.5])
         
