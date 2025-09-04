@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 
 from gui_toolbox.widget import ViewerWidget
 from gui_toolbox.renderer import View_Cam
-from vision_toolbox.asset import Scene, Gaussian_3DGS, Point_Cloud
+from vision_toolbox.asset import Scene, Gaussian_3DGS, Point_Cloud, Camera
 
 
 def create_axis_gs_asset() -> Gaussian_3DGS:
@@ -234,6 +234,13 @@ class Example_Window(QMainWindow):
     def set_scene(self, scene: Scene):
         """씬을 설정하고 UI를 업데이트합니다."""
         self.viewer.Set_scene(scene)
+        
+        # 씬에 있는 카메라의 위치를 기반으로 궤적을 추가합니다.
+        self.viewer.scene_manager.Add_trajectory(
+            name="camera_trajectory",
+            color=(1.0, 0.0, 0.0)  # Red color
+        )
+
         self.control_panel.update_asset_ui(scene)
         self.control_panel.update_camera_ui()
 
@@ -253,6 +260,25 @@ def main():
         name="example_scene",
         assets={"debug_asset": asset_to_show}
     )
+
+    # --- 테스트용 카메라들을 씬에 추가합니다. ---
+    num_cameras = 10
+    cameras = {}
+    for i in range(num_cameras):
+        pose = np.eye(4, dtype=np.float32)
+        pose[0, 3] = np.cos(i * np.pi / 5) * 2  # X position in a circle
+        pose[1, 3] = np.sin(i * np.pi / 5) * 2  # Y position in a circle
+        pose[2, 3] = i * 0.3  # Z position moves up
+        cam_name = f"cam_{i:03d}"
+        cameras[cam_name] = Camera(
+            name=cam_name,
+            pose=pose,
+            intrinsics=np.array(
+                [[1100, 0, 800], [0, 1100, 450], [0, 0, 1]], dtype=np.float32
+            ),
+            image_size=np.array([1600, 900])
+        )
+    scene.cameras = cameras
     # ------------------------------------------
 
     # 위젯이 준비되면 Set_scene을 호출하도록 연결합니다.

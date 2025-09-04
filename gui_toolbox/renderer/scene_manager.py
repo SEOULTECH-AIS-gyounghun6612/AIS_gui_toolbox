@@ -3,6 +3,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
+import open3d.geometry as o3d_geo
 
 from vision_toolbox.asset import (
     Scene,
@@ -60,6 +61,43 @@ class Scene_Manager:
         _current_assets = list(self.renderer.render_objects.keys())
         self.renderer.Remove_resources(_current_assets)
         self.renderer.Add_or_update_resources(_resources)
+
+    def Add_trajectory(
+        self,
+        name: str,
+        color: tuple[float, float, float] = (1.0, 0.0, 0.0)
+    ):
+        """
+        씬에 있는 카메라들의 위치를 수집하여 궤적(LineSet)을 생성하고
+        렌더링 목록에 추가합니다. 카메라는 이름순으로 정렬됩니다.
+        """
+        if not self.scene or not self.scene.cameras:
+            return
+
+        # Collect camera positions
+        points = np.array(
+            [cam.pose[:3, 3] for _, cam in self.scene.cameras.items()]
+        )
+
+        if len(points) < 2:
+            return
+
+        # Create LineSet geometry
+        line_set = o3d_geo.LineSet(
+            points=o3d_geo.utility.Vector3dVector(points.astype(np.float64)),
+            lines=o3d_geo.utility.Vector2iVector(
+                [[i, i + 1] for i in range(len(points) - 1)]
+            ),
+        )
+
+        # Create a resource with TRAJ type and color option
+        resource = Resource(
+            obj_type=Obj_Type.TRAJ,
+            data=line_set,
+            pose=np.eye(4, dtype=np.float32),  # World coordinates
+            color_opt=color
+        )
+        self.renderer.Add_or_update_resources({name: resource})
 
     def Render_scene(self):
         """현재 씬을 렌더링합니다."""

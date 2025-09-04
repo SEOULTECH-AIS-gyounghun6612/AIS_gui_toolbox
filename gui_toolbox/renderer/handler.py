@@ -216,8 +216,8 @@ class Handler:
                     _colors = np.asarray(_g.colors, dtype=np.float32)
                 if isinstance(_g, geometry.PointCloud):
                     _m = Prim.POINTS
-                else:
-                    _m = Prim.LINE_STRIP if _type is Obj_Type.TRAJ else Prim.LINES
+                else:  # LineSet
+                    _m = Prim.LINES
                     if _g.has_lines():
                         _idx = np.asarray(_g.lines).flatten()
             elif isinstance(_g, geometry.TriangleMesh):
