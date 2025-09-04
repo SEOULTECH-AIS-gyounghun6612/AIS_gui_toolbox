@@ -1,4 +1,4 @@
-"OpenGL Renderer Module."
+"""OpenGL Renderer Module."""
 
 import numpy as np
 from OpenGL.GL import (
@@ -48,7 +48,6 @@ class OpenGL_Renderer:
         self.quad_idx_count = 0
 
     def _check_gl_error(self, context_message: str = ""):
-        print(f"[DEBUG] _check_gl_error called for: {context_message}") # Added for debugging
         error = glGetError()
         if error != GL_NO_ERROR:
             try:
@@ -301,8 +300,6 @@ class OpenGL_Renderer:
             self._sort_gaussians(_r_objs[_n], camera.view_mat)
         self._check_gl_error("After Gaussian Sort")
 
-        
-
         for _s_type, _n_list in self.shader_obj_map.items():
             if not _n_list: continue
 
@@ -327,7 +324,6 @@ class OpenGL_Renderer:
 
             for _n in _n_list:
                 obj = _r_objs[_n]
-                print(f"[Renderer DEBUG] Model Matrix for {_n}:\n{obj.model_mat}")
                 _setters["mat4"]("model", obj.model_mat)
                 
                 if _s_type is Shader_Type.GAUSSIAN_SPLAT:
