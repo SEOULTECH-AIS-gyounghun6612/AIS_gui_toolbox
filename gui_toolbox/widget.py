@@ -55,6 +55,7 @@ class ViewerWidget(QOpenGLWidget):
         """화면을 다시 그려야 할 때마다 호출됩니다."""
         if not self._gl_initialized:
             return
+        print("[Renderer DEBUG] paintGL called") # Added for debugging
         self.scene_manager.Render_scene()
 
     # --- 이벤트 핸들러 ---
