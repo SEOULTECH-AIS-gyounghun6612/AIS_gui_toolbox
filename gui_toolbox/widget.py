@@ -18,6 +18,7 @@ class ViewerWidget(QOpenGLWidget):
         super().__init__(parent)
         self.last_mouse_pos = QPoint()
         self._gl_initialized: bool = False
+        self._pending_scene: Scene | None = None
 
         # Scene_Manager가 렌더러와 씬 데이터 관리를 모두 담당합니다.
         self.scene_manager = Scene_Manager.From_default(
@@ -28,13 +29,18 @@ class ViewerWidget(QOpenGLWidget):
         """위젯 생성 시 한 번 호출: 렌더러 초기화."""
         self.scene_manager.Initialize_renderer()
         self._gl_initialized = True
+        
+        if self._pending_scene is not None:
+            self.scene_manager.Set_scene(self._pending_scene)
+            self._pending_scene = None
+        
         self.initialized.emit()
 
     def Set_scene(self, scene: Scene):
         """렌더링할 새로운 씬을 설정합니다."""
         if not self._gl_initialized:
-            # GL이 초기화되기 전에 씬이 설정되면, 매니저에 저장만 해둠
-            self.scene_manager.scene = scene
+            # GL이 초기화되기 전에 씬이 설정되면, 나중에 설정하기 위해 저장
+            self._pending_scene = scene
             return
         
         self.scene_manager.Set_scene(scene)
