@@ -301,8 +301,7 @@ class OpenGL_Renderer:
             self._sort_gaussians(_r_objs[_n], camera.view_mat)
         self._check_gl_error("After Gaussian Sort")
 
-        print(f"[Renderer DEBUG] Projection Matrix:\n{camera.proj_mat}")
-        print(f"[Renderer DEBUG] View Matrix:\n{camera.view_mat}")
+        
 
         for _s_type, _n_list in self.shader_obj_map.items():
             if not _n_list: continue

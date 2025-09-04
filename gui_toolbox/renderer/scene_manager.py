@@ -1,7 +1,7 @@
 """렌더링 대상이 되는 Scene과 View Camera를 관리하는 모듈."""
 
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 import open3d as o3d
 import open3d.geometry as o3d_geo
@@ -63,7 +63,9 @@ class Scene_Manager:
         self.renderer.Add_or_update_resources(_resources)
 
     def Add_axis(
-        self, name: str, size: float = 1.0, 
+        self,
+        name: str,
+        size: float = 1.0,
         pose: np.ndarray = np.eye(4, dtype=np.float32)
     ):
         """디버깅을 위해 XYZ 좌표축(R,G,B)을 렌더링 목록에 추가합니다."""
@@ -137,6 +139,7 @@ class Scene_Manager:
 
     def Fit_camera_to_scene(self):
         """현재 씬의 모든 에셋에 맞춰 카메라를 조정합니다."""
+        print("[DEBUG] Fit_camera_to_scene called")
         all_points = []
         for asset in self.scene.assets.values():
             if hasattr(asset, 'points') and asset.points.size > 0:
@@ -149,15 +152,24 @@ class Scene_Manager:
                 all_points.append(cam_points)
 
         if not all_points:
+            print("[DEBUG] No points found in scene for camera fitting.")
             return
 
         combined_points = np.vstack(all_points)
         _min_bound = combined_points.min(axis=0)
         _max_bound = combined_points.max(axis=0)
 
+        print(f"[DEBUG] Min Bound: {_min_bound}")
+        print(f"[DEBUG] Max Bound: {_max_bound}")
+
         _center = (_min_bound + _max_bound) / 2.0
         _size = np.linalg.norm(_max_bound - _min_bound)
-        if _size < 1e-6: return
+        print(f"[DEBUG] Center: {_center}")
+        print(f"[DEBUG] Size: {_size}")
+
+        if _size < 1e-6: 
+            print("[DEBUG] Scene size too small for camera fitting.")
+            return
 
         _fx = self.view_cam.cam_data.intrinsics[0, 0]
         _fy = self.view_cam.cam_data.intrinsics[1, 1]
@@ -169,6 +181,9 @@ class Scene_Manager:
         _distance = (_size / 2.0) / np.tan(_fov / 2.0)
         _new_pos = _center + np.array([0, 0, _distance * 1.5])
         
+        print(f"[DEBUG] Calculated Distance: {_distance}")
+        print(f"[DEBUG] New Camera Position: {_new_pos}")
+
         _z_axis = _center - _new_pos
         _z_axis /= np.linalg.norm(_z_axis)
         _x_axis = np.cross(np.array([0., 1., 0.]), _z_axis)
