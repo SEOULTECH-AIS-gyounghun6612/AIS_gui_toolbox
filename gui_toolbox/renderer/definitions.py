@@ -65,12 +65,6 @@ class Buf_Name(IntEnum):
 
 # --- Enums for Renderer Logic ---
 
-class Sorter_Type(StrEnum):
-    """3DGS 소터 타입 정의"""
-    OPENGL = "opengl"
-    TORCH = "torch"
-    CPU = "cpu"
-
 class Shader_Type(StrEnum):
     GAUSSIAN_SPLAT = "3dgs"
     SIMPLE = "simple"
@@ -110,7 +104,6 @@ class Render_Object:
     vbos: list[int] = field(default_factory=list)
     ebo: int | None = None
     buffers: dict[str, int] = field(default_factory=dict)
-    cpu_data: dict[str, np.ndarray] | None = None  # For CPU/Torch sorters
     vtx_count: int = 0
     idx_count: int = 0
     inst_count: int = 0

@@ -13,7 +13,7 @@ from vision_toolbox.asset import (
 )
 
 from .render import OpenGL_Renderer
-from .definitions import Resource, Obj_Type, Sorter_Type, Render_Opt, Clear_Opt
+from .definitions import Resource, Obj_Type, Render_Opt, Clear_Opt
 from .view_camera import View_Cam
 
 
@@ -36,8 +36,7 @@ class Scene_Manager:
         _renderer = OpenGL_Renderer(
             bg_color=(0.5, 0.5, 0.5, 1.0),
             enable_opts=_opts,
-            clear_mask=Clear_Opt.COLOR | Clear_Opt.DEPTH,
-            sorter_type=Sorter_Type.OPENGL
+            clear_mask=Clear_Opt.COLOR | Clear_Opt.DEPTH
         )
         return cls(scene=_scene, view_cam=_view_cam, renderer=_renderer)
 
@@ -138,16 +137,23 @@ class Scene_Manager:
 
     def Fit_camera_to_scene(self):
         """현재 씬의 모든 에셋에 맞춰 카메라를 조정합니다."""
-        _min_bound = np.array([np.inf, np.inf, np.inf])
-        _max_bound = np.array([-np.inf, -np.inf, -np.inf])
-        _has_points = False
-        for _asset in self.scene.assets.values():
-            if hasattr(_asset, 'points') and _asset.points.size > 0:
-                _has_points = True
-                _min_bound = np.minimum(_min_bound, _asset.points.min(axis=0))
-                _max_bound = np.maximum(_max_bound, _asset.points.max(axis=0))
+        all_points = []
+        for asset in self.scene.assets.values():
+            if hasattr(asset, 'points') and asset.points.size > 0:
+                all_points.append(asset.points)
+        
+        # Also consider camera positions for fitting
+        if self.scene.cameras:
+            cam_points = np.array([c.pose[:3, 3] for c in self.scene.cameras.values()])
+            if cam_points.size > 0:
+                all_points.append(cam_points)
 
-        if not _has_points: return
+        if not all_points:
+            return
+
+        combined_points = np.vstack(all_points)
+        _min_bound = combined_points.min(axis=0)
+        _max_bound = combined_points.max(axis=0)
 
         _center = (_min_bound + _max_bound) / 2.0
         _size = np.linalg.norm(_max_bound - _min_bound)
