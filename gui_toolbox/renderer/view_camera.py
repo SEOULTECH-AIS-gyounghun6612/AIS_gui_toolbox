@@ -34,7 +34,7 @@ class View_Cam:
             name="default_cam",
             pose=np.eye(4, dtype=np.float32),
             intrinsics=np.array(
-                [[1100, 0, width/2], [0, 1100, height/2], [0, 0, 1]], 
+                [[0.8 * width, 0, width/2], [0, 0.8 * height, height/2], [0, 0, 1]], 
                 dtype=np.float32
             ),
             image_size=np.array([width, height])
