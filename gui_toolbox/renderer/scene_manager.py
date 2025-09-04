@@ -3,6 +3,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
+import open3d as o3d
 import open3d.geometry as o3d_geo
 
 from vision_toolbox.asset import (
@@ -84,8 +85,8 @@ class Scene_Manager:
 
         # Create LineSet geometry
         line_set = o3d_geo.LineSet(
-            points=o3d_geo.utility.Vector3dVector(points.astype(np.float64)),
-            lines=o3d_geo.utility.Vector2iVector(
+            points=o3d.utility.Vector3dVector(points.astype(np.float64)),
+            lines=o3d.utility.Vector2iVector(
                 [[i, i + 1] for i in range(len(points) - 1)]
             ),
         )
