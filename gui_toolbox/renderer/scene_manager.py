@@ -63,6 +63,38 @@ class Scene_Manager:
         self.renderer.Remove_resources(_current_assets)
         self.renderer.Add_or_update_resources(_resources)
 
+    def Add_axis(
+        self, name: str, size: float = 1.0, 
+        pose: np.ndarray = np.eye(4, dtype=np.float32)
+    ):
+        """디버깅을 위해 XYZ 좌표축(R,G,B)을 렌더링 목록에 추가합니다."""
+        # X-axis (Red)
+        ls_x = o3d_geo.LineSet(
+            points=o3d.utility.Vector3dVector([[0,0,0], [size,0,0]]),
+            lines=o3d.utility.Vector2iVector([[0,1]])
+        )
+        res_x = Resource(obj_type=Obj_Type.TRAJ, data=ls_x, pose=pose, color_opt=(1,0,0))
+
+        # Y-axis (Green)
+        ls_y = o3d_geo.LineSet(
+            points=o3d.utility.Vector3dVector([[0,0,0], [0,size,0]]),
+            lines=o3d.utility.Vector2iVector([[0,1]])
+        )
+        res_y = Resource(obj_type=Obj_Type.TRAJ, data=ls_y, pose=pose, color_opt=(0,1,0))
+
+        # Z-axis (Blue)
+        ls_z = o3d_geo.LineSet(
+            points=o3d.utility.Vector3dVector([[0,0,0], [0,0,size]]),
+            lines=o3d.utility.Vector2iVector([[0,1]])
+        )
+        res_z = Resource(obj_type=Obj_Type.TRAJ, data=ls_z, pose=pose, color_opt=(0,0,1))
+
+        self.renderer.Add_or_update_resources({
+            f"{name}_x": res_x,
+            f"{name}_y": res_y,
+            f"{name}_z": res_z,
+        })
+
     def Add_trajectory(
         self,
         name: str,

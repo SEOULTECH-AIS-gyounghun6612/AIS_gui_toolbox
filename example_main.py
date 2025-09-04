@@ -235,10 +235,13 @@ class Example_Window(QMainWindow):
         """씬을 설정하고 UI를 업데이트합니다."""
         self.viewer.Set_scene(scene)
         
+        # 디버깅을 위해 월드 좌표축을 추가합니다.
+        self.viewer.scene_manager.Add_axis(name="world_axis", size=1.0)
+
         # 씬에 있는 카메라의 위치를 기반으로 궤적을 추가합니다.
         self.viewer.scene_manager.Add_trajectory(
             name="camera_trajectory",
-            color=(1.0, 0.0, 0.0)  # Red color
+            color=(1.0, 1.0, 0.0)  # Yellow color
         )
 
         self.control_panel.update_asset_ui(scene)
