@@ -1,4 +1,4 @@
-"""OpenGL Renderer Module."""
+"OpenGL Renderer Module."
 
 import numpy as np
 from OpenGL.GL import (
@@ -139,6 +139,9 @@ class OpenGL_Renderer:
         _idx = _idx.astype(np.uint32)
         _v_ct, _i_ct = len(_data[0]), len(_idx)
         print(f"  - Type: {_type.value}, Vertices: {_v_ct}, Indices: {_i_ct}")
+        print(f"  - Points data (first 3):\n{_pts[:3]}")
+        print(f"  - Colors data (first 3):\n{_c[:3]}")
+        print(f"  - Indices data (first 6):\n{_idx[:6]}")
 
         glBindVertexArray(vao)
         for i, d in enumerate(_data):
