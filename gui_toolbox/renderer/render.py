@@ -98,8 +98,8 @@ class OpenGL_Renderer:
         self._create_quad_mesh()
         self._check_gl_error("Renderer Initialization Complete")
 
-    def _bind_simple_geom(self, vao, vbos, ebo, res: Resource) -> Render_Object:
-        # Logic from Handler.Simple.Bind and _Get_data_from_o3d
+    def _bind_simple_geom(self, name: str, vao: int, vbos: list, ebo: int, res: Resource) -> Render_Object:
+        print(f"[Renderer DEBUG] Binding Simple Geometry: '{name}'")
         _g, _type, _c_opt = res.data, res.obj_type, res.color_opt
         _pts, _idx, _colors = np.array([]), np.array([]), None
         _m = Prim.POINTS
@@ -137,10 +137,10 @@ class OpenGL_Renderer:
         
         _data = (_pts, _c)
         _idx = _idx.astype(np.uint32)
+        _v_ct, _i_ct = len(_data[0]), len(_idx)
+        print(f"  - Type: {_type.value}, Vertices: {_v_ct}, Indices: {_i_ct}")
 
         glBindVertexArray(vao)
-        _v_ct, _i_ct = len(_data[0]), len(_idx)
-
         for i, d in enumerate(_data):
             glBindBuffer(Buf_Name.VBO, vbos[i])
             glBufferData(Buf_Name.VBO, d.nbytes, d, res.draw_opt)
@@ -158,10 +158,11 @@ class OpenGL_Renderer:
             vtx_count=_v_ct, idx_count=_i_ct
         )
 
-    def _bind_gaussian_splat(self, res: Resource) -> Render_Object:
-        # Logic from Handler.Gaussian_Splat.Bind
+    def _bind_gaussian_splat(self, name: str, res: Resource) -> Render_Object:
+        print(f"[Renderer DEBUG] Binding Gaussian Splat: '{name}'")
         _data: Gaussian_3DGS = res.data
         _num_3dgs = len(_data.points)
+        print(f"  - Gaussians: {_num_3dgs}")
 
         _buffer = Create_splat_buffer(_data)
 
@@ -201,7 +202,6 @@ class OpenGL_Renderer:
         _vbos = glGenBuffers(_n_vbo) if _n_vbo > 0 else []
         _ebo = glGenBuffers(_n_res) if _n_res > 0 else []
 
-        # Ensure results are always iterable lists
         _vao = np.atleast_1d(_vao).tolist()
         _vbos = np.atleast_1d(_vbos).tolist()
         _ebo = np.atleast_1d(_ebo).tolist()
@@ -222,9 +222,9 @@ class OpenGL_Renderer:
         for name, (vao, vbos, ebo, res) in _bind_args.items():
             s_type = OBJ_TO_SHADER[res.obj_type]
             if s_type == Shader_Type.SIMPLE:
-                _obj = self._bind_simple_geom(vao, vbos, ebo, res)
+                _obj = self._bind_simple_geom(name, vao, vbos, ebo, res)
             elif s_type == Shader_Type.GAUSSIAN_SPLAT:
-                _obj = self._bind_gaussian_splat(res)
+                _obj = self._bind_gaussian_splat(name, res)
             else:
                 continue
             
@@ -239,7 +239,6 @@ class OpenGL_Renderer:
             if not _obj:
                 continue
             
-            # Release GPU resources
             if _obj.shader_type == Shader_Type.GAUSSIAN_SPLAT:
                 _buffers = list(_obj.buffers.values())
                 if _buffers:
@@ -262,7 +261,6 @@ class OpenGL_Renderer:
 
         _num_groups = (_n_gs + 1023) // 1024
 
-        # 1. Depth Calculation
         glUseProgram(self.shader_progs["depth_calc"])
         _d_setters = self.setters["depth_calc"]
         _d_setters["mat4"]("view", view_mat)
@@ -272,7 +270,6 @@ class OpenGL_Renderer:
         glDispatchCompute(_num_groups, 1, 1)
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
 
-        # 2. Bitonic Sort
         glUseProgram(self.shader_progs["bitonic_sort"])
         _s_setters = self.setters["bitonic_sort"]
         glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["sort"])
@@ -284,7 +281,6 @@ class OpenGL_Renderer:
                 glDispatchCompute(_num_groups, 1, 1)
                 glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
 
-        # 3. Reorder Data
         glUseProgram(self.shader_progs["reorder_data"])
         _r_setters = self.setters["reorder_data"]
         _r_setters["uint"]("num_elements", _n_gs)
@@ -298,13 +294,11 @@ class OpenGL_Renderer:
         self._background_init()
         _r_objs = self.render_objects
 
-        # Sort Gaussians first
         _gs_names = self.shader_obj_map[Shader_Type.GAUSSIAN_SPLAT]
         for _n in _gs_names:
             self._sort_gaussians(_r_objs[_n], camera.view_mat)
         self._check_gl_error("After Gaussian Sort")
 
-        # Render all objects
         for _s_type, _n_list in self.shader_obj_map.items():
             if not _n_list: continue
 
@@ -312,7 +306,6 @@ class OpenGL_Renderer:
             glUseProgram(self.shader_progs[_s_name])
             _setters = self.setters[_s_name]
 
-            # Set common uniforms for the shader type
             if _s_type is Shader_Type.GAUSSIAN_SPLAT:
                 _setters["mat4"]("u_projection_matrix", camera.proj_mat)
                 _setters["mat4"]("u_view_matrix", camera.view_mat)
@@ -326,7 +319,6 @@ class OpenGL_Renderer:
                 _setters["mat4"]("view", camera.view_mat)
             self._check_gl_error(f"Set Common Uniforms for {_s_name}")
 
-            # Draw each object
             for _n in _n_list:
                 obj = _r_objs[_n]
                 _setters["mat4"]("model", obj.model_mat)
