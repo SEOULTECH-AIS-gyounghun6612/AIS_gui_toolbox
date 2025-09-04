@@ -29,15 +29,11 @@ from .definitions import (
     Prim,
     Buf_Name,
     # Enums for Logic
-    Sorter_Type,
     Shader_Type,
     Obj_Type,
     # Constants
     DEFAULT_RENDER_OPT
 )
-
-# 네임스페이스로 구조화된 핸들러 및 소터
-from .handler import Sorter, Handler
 
 # 핵심 유틸리티 함수
 from .definitions import (
