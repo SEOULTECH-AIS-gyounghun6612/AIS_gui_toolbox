@@ -307,13 +307,15 @@ class OpenGL_Renderer:
             _setters = self.setters[_s_name]
 
             if _s_type is Shader_Type.GAUSSIAN_SPLAT:
-                _setters["mat4"]("u_projection_matrix", camera.proj_mat)
-                _setters["mat4"]("u_view_matrix", camera.view_mat)
+                _setters["mat4"]("projection", camera.proj_mat)
+                _setters["mat4"]("view", camera.view_mat)
                 _cam_data = camera.cam_data
                 _fx, _fy = _cam_data.intrinsics[0, 0], _cam_data.intrinsics[1, 1]
                 _w, _h = _cam_data.image_size
-                _setters["vec2"]("u_focal", np.array([_fx, _fy]))
-                _setters["vec2"]("u_viewport", np.array([_w, _h]))
+                _setters["vec2"]("focal", np.array([_fx, _fy]))
+                _setters["vec2"]("viewport", np.array([_w, _h]))
+                _setters["vec3"]("cam_pos", _cam_data.pose[:3, 3])
+                _setters["int"]("sh_degree", 0) # SH_Degree 0 for now
             else:
                 _setters["mat4"]("projection", camera.proj_mat)
                 _setters["mat4"]("view", camera.view_mat)
@@ -325,7 +327,7 @@ class OpenGL_Renderer:
                 
                 if _s_type is Shader_Type.GAUSSIAN_SPLAT:
                     glBindVertexArray(obj.vao)
-                    glBindBufferBase(Buf_Name.SSBO, 0, obj.buffers["reordered"])
+                    glBindBufferBase(Buf_Name.SSBO, 2, obj.buffers["reordered"])
                     glDrawElementsInstanced(
                         Prim.TRIANGLES, self.quad_idx_count,
                         GL_UNSIGNED_INT, None, obj.inst_count

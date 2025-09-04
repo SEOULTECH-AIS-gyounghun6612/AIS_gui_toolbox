@@ -4,10 +4,12 @@ precision mediump float;
 layout (location = 0) in vec2 in_position;
 
 // UNIFORMS
-uniform mat4 u_projection_matrix;
-uniform mat4 u_view_matrix;
-uniform vec2 u_focal;
-uniform vec2 u_viewport;
+uniform mat4 projection;
+uniform mat4 view;
+uniform vec2 focal;
+uniform vec2 viewport;
+uniform vec3 cam_pos;
+uniform int sh_degree;
 
 struct Splat {
   vec3 center;
@@ -17,10 +19,9 @@ struct Splat {
   vec3 sh[16];
 };
 
-layout(std430, binding = 0) readonly buffer splat_buffer {
+layout(std430, binding = 2) readonly buffer splat_buffer {
   Splat splats[];
 };
-
 
 out vec4 v_color;
 out vec2 v_position;
@@ -32,7 +33,6 @@ mat3 transpose(mat3 m) {
       m[0][2], m[1][2], m[2][2]
   );
 }
-
 
 const float SH_C0 = 0.28209479177387814;
 const float SH_C1 = 0.4886025119029199;
@@ -55,7 +55,6 @@ const float SH_C3[7] = float[7](
 
 vec3 get_rgb(vec3 ray_direction) {
     vec3 rgb = vec3(0.5);
-    int sh_degree = 0;
     const Splat s = splats[gl_InstanceID];
 
     rgb += SH_C0 * s.sh[0];
@@ -98,8 +97,8 @@ vec3 get_rgb(vec3 ray_direction) {
 
 void main () {
   const Splat s = splats[gl_InstanceID];
-  vec4 camspace = u_view_matrix * vec4(s.center, 1);
-  vec4 pos2d = u_projection_matrix * camspace;
+  vec4 camspace = view * vec4(s.center, 1);
+  vec4 pos2d = projection * camspace;
 
   float bounds = 1.2 * pos2d.w;
   if (pos2d.z < -pos2d.w
@@ -118,12 +117,12 @@ void main () {
   );
 
   mat3 J = mat3(
-      u_focal.x / camspace.z, 0., -(u_focal.x * camspace.x) / (camspace.z * camspace.z),
-      0., u_focal.y / camspace.z, -(u_focal.y * camspace.y) / (camspace.z * camspace.z),
+      focal.x / camspace.z, 0., -(focal.x * camspace.x) / (camspace.z * camspace.z),
+      0., -focal.y / camspace.z, (focal.y * camspace.y) / (camspace.z * camspace.z),
       0., 0., 0.
   );
 
-  mat3 W = transpose(mat3(u_view_matrix));
+  mat3 W = transpose(mat3(view));
   mat3 T = W * J;
   mat3 cov = transpose(T) * Vrk * T;
 
@@ -141,15 +140,14 @@ void main () {
   vec2 v1 = min(sqrt(2.0 * lambda1), 1024.0) * diagonalVector;
   vec2 v2 = min(sqrt(2.0 * lambda2), 1024.0) * vec2(diagonalVector.y, -diagonalVector.x);
 
-  vec3 u_cam_pos = -u_view_matrix[3].xyz * mat3(u_view_matrix);
-  vec3 ray_direction = normalize(s.center - u_cam_pos);
+  vec3 ray_direction = normalize(s.center - cam_pos);
   v_color.rgb = get_rgb(ray_direction);
   v_color.a = s.alpha;
   v_position = in_position;
 
   gl_Position = vec4(
       vCenter
-          + in_position.x * v1 / u_viewport * 2.0
-          + in_position.y * v2 / u_viewport * 2.0, 0.0, 1.0);
+          + in_position.x * v1 / viewport * 2.0
+          + in_position.y * v2 / viewport * 2.0, 0.0, 1.0);
 
 }

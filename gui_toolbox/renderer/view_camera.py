@@ -52,19 +52,15 @@ class View_Cam:
     def _Update_proj_matrix(self):
         """카메라 내부 파라미터로부터 투영 행렬을 생성합니다."""
         _fx, _fy = self.cam_data.intrinsics[0, 0], self.cam_data.intrinsics[1, 1]
-        _cx, _cy = self.cam_data.intrinsics[0, 2], self.cam_data.intrinsics[1, 2]
         _w, _h = self.cam_data.image_size
+        _n, _f = self.near_plane, self.far_plane
         
         self.proj_mat = np.zeros((4, 4), dtype=np.float32)
         self.proj_mat[0, 0] = 2 * _fx / _w
-        self.proj_mat[1, 1] = 2 * _fy / _h
-        self.proj_mat[0, 2] = -(2 * _cx / _w - 1)
-        self.proj_mat[1, 2] = (2 * _cy / _h - 1)
-        _z_sum = self.far_plane + self.near_plane
-        _z_diff = self.far_plane - self.near_plane
-        self.proj_mat[2, 2] = -_z_sum / _z_diff
-        self.proj_mat[2, 3] = -2 * self.far_plane * self.near_plane / _z_diff
-        self.proj_mat[3, 2] = -1.0
+        self.proj_mat[1, 1] = -2 * _fy / _h  # Y-down to Y-up
+        self.proj_mat[2, 2] = _f / (_f - _n)
+        self.proj_mat[2, 3] = -(_f * _n) / (_f - _n)
+        self.proj_mat[3, 2] = 1.0
 
     def Rotate(self, dx: float, dy: float, sensitivity: float = 0.1):
         """쿼터니언 기반으로 카메라를 회전시킵니다."""
@@ -89,4 +85,6 @@ class View_Cam:
     def Set_projection(self, width: int, height: int):
         """화면 크기 변경에 따라 투영 행렬을 업데이트합니다."""
         self.cam_data.image_size = np.array([width, height])
+        self.cam_data.intrinsics[0, 2] = width / 2
+        self.cam_data.intrinsics[1, 2] = height / 2
         self._Update_proj_matrix()
