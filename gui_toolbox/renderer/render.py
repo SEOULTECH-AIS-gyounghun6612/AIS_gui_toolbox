@@ -96,6 +96,9 @@ class OpenGL_Renderer:
         self._check_gl_error("GL Options Enable")
 
         self._create_quad_mesh()
+        # Debugging: Force an OpenGL error to check if _check_gl_error works
+        glGetError() # Clear any previous error
+        glEnable(99999) # This should cause an invalid enum error
         self._check_gl_error("Renderer Initialization Complete")
 
     def _bind_simple_geom(self, name: str, vao: int, vbos: list, ebo: int, res: Resource) -> Render_Object:
