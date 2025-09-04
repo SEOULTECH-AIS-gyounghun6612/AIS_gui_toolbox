@@ -8,8 +8,6 @@ uniform mat4 u_projection_matrix;
 uniform mat4 u_view_matrix;
 uniform vec2 u_focal;
 uniform vec2 u_viewport;
-// uniform vec3 u_cam_pos;
-// uniform int u_sh_degree;
 
 struct Splat {
   vec3 center;
@@ -121,7 +119,7 @@ void main () {
 
   mat3 J = mat3(
       u_focal.x / camspace.z, 0., -(u_focal.x * camspace.x) / (camspace.z * camspace.z),
-      0., -u_focal.y / camspace.z, (u_focal.y * camspace.y) / (camspace.z * camspace.z),
+      0., u_focal.y / camspace.z, -(u_focal.y * camspace.y) / (camspace.z * camspace.z),
       0., 0., 0.
   );
 

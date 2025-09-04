@@ -59,7 +59,7 @@ class View_Cam:
         self.proj_mat[0, 0] = 2 * _fx / _w
         self.proj_mat[1, 1] = 2 * _fy / _h
         self.proj_mat[0, 2] = -(2 * _cx / _w - 1)
-        self.proj_mat[1, 2] = -(2 * _cy / _h - 1)
+        self.proj_mat[1, 2] = (2 * _cy / _h - 1)
         _z_sum = self.far_plane + self.near_plane
         _z_diff = self.far_plane - self.near_plane
         self.proj_mat[2, 2] = -_z_sum / _z_diff
